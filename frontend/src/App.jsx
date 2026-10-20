@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
+import { Loader2 } from 'lucide-react'
 import { Header } from './components/Header.jsx'
 import { FilterBar } from './components/FilterBar.jsx'
 import { TrackRow } from './components/TrackRow.jsx'
@@ -56,6 +57,9 @@ export default function App() {
   const [page, setPage] = useState(0)
   const [hasMore, setHasMore] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
+  const [isLoadingMore, setIsLoadingMore] = useState(false)
+  const isLoadingMoreRef = useRef(false)
+  const sentinelRef = useRef(null)
   const [stageTitle, setStageTitle] = useState('Discover')
   const [resultsCount, setResultsCount] = useState('')
 
@@ -406,6 +410,9 @@ export default function App() {
       setActiveCollection(null)
       setStageTitle(query === 'top hits' ? 'Featured Releases' : `“${query}”`)
       setResultsCount('Searching...')
+    } else {
+      setIsLoadingMore(true)
+      isLoadingMoreRef.current = true
     }
 
     const signal = searchAbortCtrlRef.current?.signal
@@ -413,7 +420,7 @@ export default function App() {
     try {
       if (scope === 'songs') {
         const res = await fetch(
-          apiUrl(`/api/search/songs?query=${encodeURIComponent(query)}&page=${pageNum}&limit=15`),
+          apiUrl(`/api/search/songs?query=${encodeURIComponent(query)}&page=${pageNum}&limit=20`),
           { signal }
         )
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -422,11 +429,19 @@ export default function App() {
         const normalized = rawResults.map(normalizeTrack).filter(Boolean)
 
         setPage(pageNum)
-        setHasMore(normalized.length >= 15)
+        setHasMore(normalized.length > 0)
 
         if (append) {
-          setTracks((prev) => [...prev, ...normalized])
-          setQueue((prev) => [...prev, ...normalized])
+          setTracks((prev) => {
+            const seen = new Set(prev.map((t) => t.id))
+            const fresh = normalized.filter((t) => !seen.has(t.id))
+            return [...prev, ...fresh]
+          })
+          setQueue((prev) => {
+            const seen = new Set(prev.map((t) => t.id))
+            const fresh = normalized.filter((t) => !seen.has(t.id))
+            return [...prev, ...fresh]
+          })
         } else {
           setTracks(normalized)
           setQueue(normalized)
@@ -437,16 +452,26 @@ export default function App() {
         }
       } else {
         const res = await fetch(
-          apiUrl(`/api/search/${scope}?query=${encodeURIComponent(query)}&limit=24`),
+          apiUrl(`/api/search/${scope}?query=${encodeURIComponent(query)}&page=${pageNum}&limit=24`),
           { signal }
         )
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         const json = await res.json()
         const items = json.data?.results || []
-        setCards(items)
-        setTracks([])
-        setHasMore(false)
-        setResultsCount(`${items.length} ${scope}`)
+        setPage(pageNum)
+        setHasMore(items.length >= 10)
+
+        if (append) {
+          setCards((prev) => {
+            const seen = new Set(prev.map((c) => c.id))
+            const fresh = items.filter((c) => !seen.has(c.id))
+            return [...prev, ...fresh]
+          })
+        } else {
+          setCards(items)
+          setTracks([])
+          setResultsCount(`${json.data?.total ? json.data.total.toLocaleString() : items.length} ${scope}`)
+        }
       }
     } catch (err) {
       if (err.name !== 'AbortError') {
@@ -455,8 +480,60 @@ export default function App() {
       }
     } finally {
       setIsLoading(false)
+      setIsLoadingMore(false)
+      isLoadingMoreRef.current = false
     }
   }
+
+  // Infinite Scroll Auto-loader on Scroll
+  const handleLoadMore = useCallback(() => {
+    if (
+      isLoading ||
+      isLoadingMoreRef.current ||
+      !hasMore ||
+      activeCollection
+    ) {
+      return
+    }
+    isLoadingMoreRef.current = true
+    setIsLoadingMore(true)
+    executeSearch(searchQuery || 'top hits', activeScope, page + 1, true)
+  }, [isLoading, hasMore, activeCollection, searchQuery, activeScope, page])
+
+  useEffect(() => {
+    const sentinel = sentinelRef.current
+    if (!sentinel) return
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          handleLoadMore()
+        }
+      },
+      {
+        root: null,
+        rootMargin: '450px',
+        threshold: 0
+      }
+    )
+
+    observer.observe(sentinel)
+    return () => observer.disconnect()
+  }, [handleLoadMore])
+
+  useEffect(() => {
+    const onScroll = () => {
+      if (
+        window.innerHeight + window.scrollY >=
+        document.documentElement.scrollHeight - 600
+      ) {
+        handleLoadMore()
+      }
+    }
+
+    window.addEventListener('scroll', onScroll, { passive: true })
+    return () => window.removeEventListener('scroll', onScroll)
+  }, [handleLoadMore])
 
   // Debounced search on query change
   const handleSearchChange = (val) => {
@@ -720,16 +797,13 @@ export default function App() {
           </div>
         )}
 
-        {/* Infinite Scroll trigger for tracks */}
-        {hasMore && activeScope === 'songs' && !activeCollection && (
-          <div className="lazy-spinner-wrap">
-            <button
-              className="btn-pill"
-              onClick={() => executeSearch(searchQuery || 'top hits', 'songs', page + 1, true)}
-              disabled={isLoading}
-            >
-              {isLoading ? 'Loading more...' : 'Load more tracks'}
-            </button>
+        {/* Infinite Scroll trigger & loading spinner on scroll */}
+        {hasMore && !activeCollection && (
+          <div ref={sentinelRef} className="infinite-scroll-sentinel">
+            <div className="infinite-scroll-loader">
+              <Loader2 size={18} className="spin-loader" />
+              <span>Loading more {activeScope === 'songs' ? 'songs' : activeScope}...</span>
+            </div>
           </div>
         )}
 

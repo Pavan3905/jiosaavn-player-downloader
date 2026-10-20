@@ -616,15 +616,39 @@ a {
   margin-top: 3px;
 }
 
-/* Loading & Empty State */
-.lazy-spinner-wrap {
+/* Infinite Scroll Sentinel & Loader */
+.infinite-scroll-sentinel {
+  width: 100%;
+  padding: 20px 0 36px;
   display: flex;
-  align-items: center;
   justify-content: center;
-  padding: 24px;
+  align-items: center;
+}
+
+.infinite-scroll-loader {
+  display: inline-flex;
+  align-items: center;
   gap: 10px;
-  color: var(--text-muted);
-  font-size: 12px;
+  padding: 10px 22px;
+  border-radius: var(--radius-full);
+  background: var(--surface-elevated);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 500;
+  box-shadow: 0 4px 18px rgba(0, 0, 0, 0.28);
+  animation: fadeIn 0.25s ease-out;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .empty-box {
