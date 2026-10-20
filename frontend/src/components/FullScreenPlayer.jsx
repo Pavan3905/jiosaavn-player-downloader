@@ -10,9 +10,7 @@ import {
   Repeat1,
   Volume2,
   VolumeX,
-  ListMusic,
   Download,
-  Heart,
   Loader2
 } from 'lucide-react'
 import { formatDuration } from '../utils/helpers.js'
@@ -27,8 +25,6 @@ export function FullScreenPlayer({
   volume,
   currentTime,
   duration,
-  isLiked,
-  onToggleLike,
   onTogglePlayPause,
   onPlayPrev,
   onPlayNext,
@@ -36,7 +32,6 @@ export function FullScreenPlayer({
   onToggleRepeat,
   onSeek,
   onVolumeChange,
-  onToggleQueue,
   onDownload,
   isDownloading
 }) {
@@ -187,15 +182,6 @@ export function FullScreenPlayer({
                 <h1 className="fs-track-name">{currentTrack.name}</h1>
                 <p className="fs-artist-name">{currentTrack.artist}</p>
               </div>
-
-              <button
-                className={`fs-like-btn ${isLiked ? 'liked' : ''}`}
-                onClick={() => onToggleLike(currentTrack)}
-                title={isLiked ? 'Unlike' : 'Like'}
-                aria-label={isLiked ? `Unlike ${currentTrack.name}` : `Like ${currentTrack.name}`}
-              >
-                <Heart size={26} fill={isLiked ? 'currentColor' : 'none'} />
-              </button>
             </div>
           </div>
         </div>
@@ -317,15 +303,6 @@ export function FullScreenPlayer({
             </div>
 
             <div className="fs-actions-right">
-              <button
-                className="fs-icon-btn"
-                onClick={onToggleQueue}
-                title="Queue"
-                aria-label="Open playback queue"
-              >
-                <ListMusic size={22} />
-              </button>
-
               <button
                 className={`fs-icon-btn ${isDownloading ? 'downloading' : ''}`}
                 onClick={() => onDownload(currentTrack)}

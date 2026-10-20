@@ -9,7 +9,6 @@ import {
   Repeat1,
   Volume2,
   VolumeX,
-  ListMusic,
   Download,
   Maximize2,
   Loader2
@@ -31,7 +30,6 @@ export function Player({
   onToggleRepeat,
   onSeek,
   onVolumeChange,
-  onToggleQueue,
   onDownload,
   onOpenFullScreen,
   isDownloading
@@ -247,15 +245,6 @@ export function Player({
             aria-label="Volume slider"
           />
         </div>
-
-        <button
-          className="transport-btn"
-          onClick={onToggleQueue}
-          title="Queue"
-          aria-label="Toggle Playing Queue drawer"
-        >
-          <ListMusic size={16} />
-        </button>
 
         <button
           className="transport-btn btn-action-dl"

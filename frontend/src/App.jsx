@@ -6,7 +6,6 @@ import { MusicCard } from './components/MusicCard.jsx'
 import { Player } from './components/Player.jsx'
 import { FullScreenPlayer } from './components/FullScreenPlayer.jsx'
 import { CollectionHero } from './components/CollectionHero.jsx'
-import { QueueDrawer } from './components/QueueDrawer.jsx'
 import { Toast } from './components/Toast.jsx'
 import {
   normalizeTrack,
@@ -48,13 +47,6 @@ export default function App() {
   const [duration, setDuration] = useState(0)
   const streamQuality = '320kbps'
   const streamMode = 'proxy'
-  const [likedTracks, setLikedTracks] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem('saavn_favorites')) || []
-    } catch {
-      return []
-    }
-  })
 
   // Search & Content State
   const [searchQuery, setSearchQuery] = useState('')
@@ -67,8 +59,7 @@ export default function App() {
   const [stageTitle, setStageTitle] = useState('Discover')
   const [resultsCount, setResultsCount] = useState('')
 
-  // Modals & Drawers State
-  const [isQueueOpen, setIsQueueOpen] = useState(false)
+  // View State
   const [isFullScreenOpen, setIsFullScreenOpen] = useState(false)
   const [downloadingTrackId, setDownloadingTrackId] = useState(null)
   const [activeCollection, setActiveCollection] = useState(null)
@@ -385,25 +376,6 @@ export default function App() {
     const audio = audioRef.current
     audio.volume = newVol
     setVolume(newVol)
-  }
-
-  const handleToggleLike = (track) => {
-    const exists = likedTracks.some((t) => t.id === track.id)
-    let updated
-    if (exists) {
-      updated = likedTracks.filter((t) => t.id !== track.id)
-      showToast('Removed from Favorites')
-    } else {
-      updated = [track, ...likedTracks]
-      showToast('Added to Favorites')
-    }
-    setLikedTracks(updated)
-    localStorage.setItem('saavn_favorites', JSON.stringify(updated))
-  }
-
-  const handleAddToQueue = (track) => {
-    setQueue((prev) => [...prev, track])
-    showToast(`Added to queue: ${track.name}`)
   }
 
   // Direct 1-Click Download Handler with Visual Progress Animation
@@ -725,10 +697,7 @@ export default function App() {
                 index={idx}
                 isCurrent={currentTrack?.id === track.id}
                 isPlaying={isPlaying}
-                isLiked={likedTracks.some((t) => t.id === track.id)}
                 onPlay={() => playTrackAtIndex(idx)}
-                onToggleLike={handleToggleLike}
-                onAddToQueue={handleAddToQueue}
                 onDownload={(t) => handleDirectDownload(t)}
                 onAlbumClick={(albumId) => handleCardClick(albumId, 'albums')}
                 isDownloading={downloadingTrackId === track.id}
@@ -828,7 +797,6 @@ export default function App() {
         }}
         onSeek={handleSeek}
         onVolumeChange={handleVolumeChange}
-        onToggleQueue={() => setIsQueueOpen((prev) => !prev)}
         onDownload={(t) => handleDirectDownload(t)}
         onOpenFullScreen={() => setIsFullScreenOpen(true)}
         isDownloading={downloadingTrackId === currentTrack?.id}
@@ -845,8 +813,6 @@ export default function App() {
         volume={volume}
         currentTime={currentTime}
         duration={duration}
-        isLiked={likedTracks.some((t) => t.id === currentTrack?.id)}
-        onToggleLike={handleToggleLike}
         onTogglePlayPause={handleTogglePlayPause}
         onPlayPrev={handlePlayPrev}
         onPlayNext={handlePlayNext}
@@ -861,28 +827,8 @@ export default function App() {
         }}
         onSeek={handleSeek}
         onVolumeChange={handleVolumeChange}
-        onToggleQueue={() => setIsQueueOpen((prev) => !prev)}
         onDownload={(t) => handleDirectDownload(t)}
         isDownloading={downloadingTrackId === currentTrack?.id}
-      />
-
-      {/* Queue Drawer */}
-      <QueueDrawer
-        isOpen={isQueueOpen}
-        queue={queue}
-        currentIndex={currentIndex}
-        onClose={() => setIsQueueOpen(false)}
-        onPlayIndex={(idx) => playTrackAtIndex(idx)}
-        onRemoveIndex={(idx) => {
-          setQueue((prev) => prev.filter((_, i) => i !== idx))
-          if (idx === currentIndex) handlePlayNext()
-          else if (idx < currentIndex) setCurrentIndex((prev) => prev - 1)
-        }}
-        onClearQueue={() => {
-          setQueue(currentTrack ? [currentTrack] : [])
-          setCurrentIndex(currentTrack ? 0 : -1)
-          showToast('Queue cleared')
-        }}
       />
 
       {/* Toast Feedback */}

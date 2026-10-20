@@ -1,5 +1,5 @@
 import React from 'react'
-import { Play, Pause, Heart, Plus, Download, Loader2 } from 'lucide-react'
+import { Play, Pause, Download, Loader2 } from 'lucide-react'
 import { formatDuration } from '../utils/helpers.js'
 
 export function TrackRow({
@@ -7,10 +7,7 @@ export function TrackRow({
   index,
   isCurrent,
   isPlaying,
-  isLiked,
   onPlay,
-  onToggleLike,
-  onAddToQueue,
   onDownload,
   onAlbumClick,
   isDownloading
@@ -65,28 +62,6 @@ export function TrackRow({
       <div className="track-duration">{formatDuration(track.duration)}</div>
 
       <div className="track-actions">
-        <button
-          className={`row-action-btn btn-like ${isLiked ? 'liked' : ''}`}
-          onClick={(e) => {
-            e.stopPropagation()
-            onToggleLike(track)
-          }}
-          title={isLiked ? 'Unlike' : 'Like'}
-          aria-label={isLiked ? `Unlike ${track.name}` : `Like ${track.name}`}
-        >
-          <Heart size={15} fill={isLiked ? 'currentColor' : 'none'} />
-        </button>
-        <button
-          className="row-action-btn"
-          onClick={(e) => {
-            e.stopPropagation()
-            onAddToQueue(track)
-          }}
-          title="Add to Queue"
-          aria-label={`Add ${track.name} to playback queue`}
-        >
-          <Plus size={16} />
-        </button>
         <button
           className="row-action-btn"
           onClick={(e) => {
