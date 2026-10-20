@@ -775,7 +775,7 @@ export default function App() {
 
   return (
     <div className="app-layout">
-      <main className="main-content">
+      <main className={`main-content ${currentTrack ? 'has-player' : ''}`}>
         <Header
           searchQuery={searchQuery}
           onSearchChange={handleSearchChange}
@@ -883,37 +883,39 @@ export default function App() {
         )}
 
         {/* Content bottom spacer to ensure elements are never hidden behind fixed player bar */}
-        <div className="content-bottom-spacer" aria-hidden="true" />
+        {currentTrack && <div className="content-bottom-spacer" aria-hidden="true" />}
       </main>
 
-      {/* Fixed Bottom Player */}
-      <Player
-        currentTrack={currentTrack}
-        isPlaying={isPlaying}
-        shuffle={shuffle}
-        repeat={repeat}
-        volume={volume}
-        currentTime={currentTime}
-        duration={duration}
-        onTogglePlayPause={handleTogglePlayPause}
-        onPlayPrev={handlePlayPrev}
-        onPlayNext={handlePlayNext}
-        onToggleShuffle={() => {
-          setShuffle((prev) => !prev)
-          showToast(!shuffle ? 'Shuffle enabled' : 'Shuffle disabled')
-        }}
-        onToggleRepeat={() => {
-          const next = repeat === 'none' ? 'all' : repeat === 'all' ? 'one' : 'none'
-          setRepeat(next)
-          showToast(next === 'one' ? 'Repeat one' : next === 'all' ? 'Repeat all' : 'Repeat off')
-        }}
-        onSeek={handleSeek}
-        onVolumeChange={handleVolumeChange}
-        onDownload={(t) => handleDirectDownload(t)}
-        onOpenFullScreen={() => setIsFullScreenOpen(true)}
-        onGoToAlbum={handleGoToAlbum}
-        isDownloading={downloadingTrackId === currentTrack?.id}
-      />
+      {/* Fixed Bottom Player: Only shown when user has selected & is listening/paused */}
+      {currentTrack && (
+        <Player
+          currentTrack={currentTrack}
+          isPlaying={isPlaying}
+          shuffle={shuffle}
+          repeat={repeat}
+          volume={volume}
+          currentTime={currentTime}
+          duration={duration}
+          onTogglePlayPause={handleTogglePlayPause}
+          onPlayPrev={handlePlayPrev}
+          onPlayNext={handlePlayNext}
+          onToggleShuffle={() => {
+            setShuffle((prev) => !prev)
+            showToast(!shuffle ? 'Shuffle enabled' : 'Shuffle disabled')
+          }}
+          onToggleRepeat={() => {
+            const next = repeat === 'none' ? 'all' : repeat === 'all' ? 'one' : 'none'
+            setRepeat(next)
+            showToast(next === 'one' ? 'Repeat one' : next === 'all' ? 'Repeat all' : 'Repeat off')
+          }}
+          onSeek={handleSeek}
+          onVolumeChange={handleVolumeChange}
+          onDownload={(t) => handleDirectDownload(t)}
+          onOpenFullScreen={() => setIsFullScreenOpen(true)}
+          onGoToAlbum={handleGoToAlbum}
+          isDownloading={downloadingTrackId === currentTrack?.id}
+        />
+      )}
 
       {/* Full Screen Player Mode */}
       <FullScreenPlayer

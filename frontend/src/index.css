@@ -131,11 +131,16 @@ a {
 
 .main-content {
   min-width: 0;
-  padding: 24px 32px calc(var(--player-height, 88px) + 70px);
+  padding: 24px 32px 48px;
   max-width: 1200px;
   width: 100%;
   margin: 0 auto;
   box-sizing: border-box;
+  transition: padding-bottom 0.25s ease;
+}
+
+.main-content.has-player {
+  padding-bottom: calc(var(--player-height, 88px) + 70px);
 }
 
 .content-bottom-spacer {
@@ -757,6 +762,18 @@ a {
   padding: 0 24px calc(env(safe-area-inset-bottom, 0px));
   gap: 20px;
   z-index: 50;
+  animation: playerSlideUp 0.32s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes playerSlideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 .now-playing-meta {
@@ -1558,7 +1575,11 @@ a {
 
 @media (max-width: 860px) {
   .main-content {
-    padding: 14px 16px calc(150px + env(safe-area-inset-bottom, 0px) + 50px);
+    padding: 14px 16px 36px;
+  }
+
+  .main-content.has-player {
+    padding-bottom: calc(150px + env(safe-area-inset-bottom, 0px) + 50px);
   }
 
   .player-bar {
@@ -1859,7 +1880,11 @@ a {
 
 @media (max-width: 480px) {
   .main-content {
-    padding: 12px 12px calc(150px + env(safe-area-inset-bottom, 0px) + 50px);
+    padding: 12px 12px 28px;
+  }
+
+  .main-content.has-player {
+    padding-bottom: calc(150px + env(safe-area-inset-bottom, 0px) + 50px);
   }
 
   /* Top left art slightly big on mobile */
