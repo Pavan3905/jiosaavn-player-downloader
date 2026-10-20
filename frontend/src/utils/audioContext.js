@@ -1,7 +1,6 @@
 let audioCtx = null
 let mediaSource = null
 let analyser = null
-const eqBands = {}
 let animFrameId = null
 let visualizerRunning = false
 let activeCanvas = null
@@ -17,12 +16,12 @@ export function initWebAudio(audioElement, canvasElement, isPlayingRef) {
       audioCtx.resume().catch(() => {})
     }
     triggerVisualizer()
-    return { eqBands }
+    return
   }
 
   try {
     const AudioContextClass = window.AudioContext || window.webkitAudioContext
-    if (!AudioContextClass) return { eqBands }
+    if (!AudioContextClass) return
 
     audioCtx = new AudioContextClass()
     mediaSource = audioCtx.createMediaElementSource(audioElement)
@@ -30,32 +29,12 @@ export function initWebAudio(audioElement, canvasElement, isPlayingRef) {
     analyser.fftSize = 64
     activeAnalyser = analyser
 
-    const freqs = [60, 250, 1000, 4000, 12000]
-    let lastNode = mediaSource
-
-    freqs.forEach((f) => {
-      const filter = audioCtx.createBiquadFilter()
-      filter.type = f <= 60 ? 'lowshelf' : f >= 12000 ? 'highshelf' : 'peaking'
-      filter.frequency.value = f
-      filter.gain.value = 0
-      eqBands[f] = filter
-      lastNode.connect(filter)
-      lastNode = filter
-    })
-
-    lastNode.connect(analyser)
+    mediaSource.connect(analyser)
     analyser.connect(audioCtx.destination)
 
     triggerVisualizer()
   } catch (e) {
-    console.warn('Fallback to native HTML5 audio', e)
-  }
-  return { eqBands }
-}
-
-export function setEqBandGain(freq, gain) {
-  if (eqBands[freq]) {
-    eqBands[freq].gain.value = gain
+    console.warn('AudioContext fallback to HTML5 audio', e)
   }
 }
 
@@ -84,7 +63,7 @@ function stopVisualizerLoop(canvas) {
   const barWidth = canvas.width / 8 - 1.5
   let x = 0
   for (let i = 0; i < 8; i++) {
-    ctx.fillStyle = '#334155'
+    ctx.fillStyle = '#1e2922'
     ctx.fillRect(x, canvas.height - 2, barWidth, 2)
     x += barWidth + 1.5
   }

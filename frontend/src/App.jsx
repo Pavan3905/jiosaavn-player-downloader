@@ -5,25 +5,16 @@ import { TrackRow } from './components/TrackRow.jsx'
 import { MusicCard } from './components/MusicCard.jsx'
 import { Player } from './components/Player.jsx'
 import { QueueDrawer } from './components/QueueDrawer.jsx'
-import { LyricsDrawer } from './components/LyricsDrawer.jsx'
-import {
-  EqualizerModal,
-  SleepTimerModal,
-  QualityModal,
-  DownloadModal,
-  ShortcutsModal
-} from './components/Modals.jsx'
+import { QualityModal, ShortcutsModal } from './components/Modals.jsx'
 import { Toast } from './components/Toast.jsx'
 import {
   normalizeTrack,
   getAudioUrlFromTrack,
-  cleanLyrics,
-  createLrcFile,
   decodeHtmlEntities,
   apiUrl
 } from './utils/helpers.js'
 import { downloadTrackWithMetadata, resolveTrackDetails } from './utils/audioTagger.js'
-import { initWebAudio, setEqBandGain, triggerVisualizer } from './utils/audioContext.js'
+import { initWebAudio, triggerVisualizer } from './utils/audioContext.js'
 
 export default function App() {
   const audioRef = useRef(new Audio())
@@ -32,7 +23,6 @@ export default function App() {
   const isPlayingRef = useRef(false)
   const searchAbortCtrlRef = useRef(null)
   const searchTimerRef = useRef(null)
-  const sleepTimeoutRef = useRef(null)
   const playPromiseRef = useRef(null)
 
   // Player State
@@ -66,28 +56,11 @@ export default function App() {
   const [stageTitle, setStageTitle] = useState('Discover')
   const [resultsCount, setResultsCount] = useState('')
 
-  // Lyrics State
-  const [rawLyrics, setRawLyrics] = useState('')
-  const [lyricsLines, setLyricsLines] = useState([])
-  const [isLyricsLoading, setIsLyricsLoading] = useState(false)
-
-  // Equalizer State
-  const [eqBandsState, setEqBandsState] = useState({ 60: 0, 250: 0, 1000: 0, 4000: 0, 12000: 0 })
-
-  // Sleep Timer State
-  const [sleepTimerValue, setSleepTimerValue] = useState('0')
-  const [sleepTimerLabel, setSleepTimerLabel] = useState('Timer')
-
   // Modals & Drawers State
   const [isQueueOpen, setIsQueueOpen] = useState(false)
-  const [isLyricsOpen, setIsLyricsOpen] = useState(false)
-  const [isEqOpen, setIsEqOpen] = useState(false)
-  const [isTimerOpen, setIsTimerOpen] = useState(false)
   const [isQualityOpen, setIsQualityOpen] = useState(false)
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false)
-  const [downloadModalTrack, setDownloadModalTrack] = useState(null)
   const [isDownloading, setIsDownloading] = useState(false)
-  const [downloadProgress, setDownloadProgress] = useState('')
 
   // Toast State
   const [toast, setToast] = useState({ message: '', isError: false, isVisible: false })
@@ -168,17 +141,17 @@ export default function App() {
     const handlePlay = () => setIsPlaying(true)
     const handlePause = () => setIsPlaying(false)
     const handleEnded = () => {
-      const { repeat: rep, sleepTimerValue: sleepVal } = stateRef.current
+      const { repeat: rep } = stateRef.current
       if (rep === 'one') {
         audio.currentTime = 0
         audio.play().catch(() => {})
-      } else if (sleepVal === 'end-track') {
-        setIsPlaying(false)
-        setSleepTimerValue('0')
-        setSleepTimerLabel('Timer')
-        showToast('Playback paused at end of track.')
       } else {
         handlePlayNext()
+      }
+    }
+    const handleError = () => {
+      if (audio.src) {
+        showToast('Playback encountered a network error. Trying fallback...', true)
       }
     }
 
@@ -187,6 +160,7 @@ export default function App() {
     audio.addEventListener('play', handlePlay)
     audio.addEventListener('pause', handlePause)
     audio.addEventListener('ended', handleEnded)
+    audio.addEventListener('error', handleError)
 
     return () => {
       audio.removeEventListener('timeupdate', handleTimeUpdate)
@@ -194,6 +168,7 @@ export default function App() {
       audio.removeEventListener('play', handlePlay)
       audio.removeEventListener('pause', handlePause)
       audio.removeEventListener('ended', handleEnded)
+      audio.removeEventListener('error', handleError)
     }
   }, [])
 
@@ -208,51 +183,6 @@ export default function App() {
       window.removeEventListener('offline', handleOffline)
     }
   }, [showToast])
-
-  // Parse lyrics into timestamped lines
-  const parseLyrics = (text) => {
-    const clean = cleanLyrics(text)
-    const lines = clean.split('\n').map((l) => l.trim()).filter(Boolean)
-    const parsed = []
-    const timeRegex = /\[(\d{1,2}):(\d{2})(?:\.(\d{1,3}))?\]/g
-
-    lines.forEach((line) => {
-      timeRegex.lastIndex = 0
-      const match = timeRegex.exec(line)
-      if (match) {
-        const min = parseInt(match[1], 10)
-        const sec = parseInt(match[2], 10)
-        const ms = match[3] ? parseInt(match[3].padEnd(3, '0').slice(0, 3), 10) : 0
-        const total = min * 60 + sec + ms / 1000
-        const lineText = line.replace(/\[.*?\]/g, '').trim()
-        if (lineText) parsed.push({ time: total, text: lineText })
-      } else {
-        parsed.push({ time: null, text: line })
-      }
-    })
-    setLyricsLines(parsed)
-  }
-
-  // Fetch Lyrics for track
-  const fetchLyrics = async (track) => {
-    setIsLyricsLoading(true)
-    setRawLyrics('')
-    setLyricsLines([])
-    try {
-      const res = await fetch(apiUrl(`/api/songs/${encodeURIComponent(track.id)}/lyrics`))
-      if (!res.ok) throw new Error('Lyrics not available')
-      const json = await res.json()
-      const text = json.data?.lyrics || json.data?.lyrics_text || ''
-      if (!text) throw new Error('Lyrics not available')
-      setRawLyrics(text)
-      parseLyrics(text)
-    } catch {
-      setRawLyrics('')
-      setLyricsLines([])
-    } finally {
-      setIsLyricsLoading(false)
-    }
-  }
 
   // Play track at queue index
   const playTrackAtIndex = async (idx, customQueue = null) => {
@@ -300,7 +230,6 @@ export default function App() {
     playPromiseRef.current
       .then(() => {
         setIsPlaying(true)
-        fetchLyrics(track)
       })
       .catch((err) => {
         if (err.name !== 'AbortError') {
@@ -351,12 +280,12 @@ export default function App() {
             const res = await fetch(apiUrl(`/api/songs/${encodeURIComponent(curr.id)}/suggestions?limit=10`))
             if (res.ok) {
               const json = await res.json()
-              const rawList = json.data || []
-              const newTracks = rawList.map(normalizeTrack).filter(Boolean)
-              if (newTracks.length) {
-                setQueue((prev) => [...prev, ...newTracks])
-                playTrackAtIndex(cIdx + 1, [...q, ...newTracks])
-                showToast('Radio: Playing similar tracks.')
+              const suggestions = (json.data || []).map(normalizeTrack).filter(Boolean)
+              if (suggestions.length > 0) {
+                const updatedQueue = [...q, ...suggestions]
+                setQueue(updatedQueue)
+                playTrackAtIndex(q.length, updatedQueue)
+                showToast(`Radio: Added ${suggestions.length} recommendations to queue`)
                 return
               }
             }
@@ -416,6 +345,23 @@ export default function App() {
     showToast(`Added to queue: ${track.name}`)
   }
 
+  // Direct 1-Click Download Handler (No modal, No lyrics, Full metadata & artwork)
+  const handleDirectDownload = async (track) => {
+    if (!track) return
+    setIsDownloading(true)
+    showToast(`Downloading “${track.name}” (320kbps M4A)...`)
+    try {
+      await downloadTrackWithMetadata(track, 'none', (msg) => {
+        showToast(msg)
+      })
+      showToast(`✓ Downloaded “${track.name}” with cover artwork`)
+    } catch (err) {
+      showToast(err.message || 'Download failed', true)
+    } finally {
+      setIsDownloading(false)
+    }
+  }
+
   // Search Execution
   const executeSearch = async (query, scope = activeScope, pageNum = 0, append = false) => {
     if (!query.trim()) query = 'top hits'
@@ -441,8 +387,8 @@ export default function App() {
         const rawResults = json.data?.results || []
         const normalized = rawResults.map(normalizeTrack).filter(Boolean)
 
-        setHasMore(normalized.length >= 15)
         setPage(pageNum)
+        setHasMore(normalized.length >= 15)
 
         if (append) {
           setTracks((prev) => [...prev, ...normalized])
@@ -529,49 +475,6 @@ export default function App() {
     executeSearch('top hits', 'songs', 0, false)
   }, [])
 
-  // Equalizer Preset & Band Change
-  const handleBandChange = (freq, val) => {
-    setEqBandGain(freq, val)
-    setEqBandsState((prev) => ({ ...prev, [freq]: val }))
-  }
-
-  const handlePresetApply = (vals) => {
-    Object.keys(vals).forEach((f) => setEqBandGain(f, vals[f]))
-    setEqBandsState(vals)
-  }
-
-  // Sleep Timer Handler
-  const handleSetSleepTimer = (val) => {
-    clearTimeout(sleepTimeoutRef.current)
-    setSleepTimerValue(val)
-    if (val === '0') {
-      setSleepTimerLabel('Timer')
-      showToast('Sleep timer disabled.')
-    } else if (val === 'end-track') {
-      setSleepTimerLabel('End Track')
-      showToast('Playback will stop after the current song.')
-    } else {
-      const mins = parseInt(val, 10)
-      setSleepTimerLabel(`${mins}m`)
-      showToast(`Sleep timer set for ${mins} minutes.`)
-      sleepTimeoutRef.current = setTimeout(() => {
-        const audio = audioRef.current
-        const fade = setInterval(() => {
-          if (audio.volume > 0.1) audio.volume -= 0.1
-          else {
-            clearInterval(fade)
-            audio.pause()
-            setIsPlaying(false)
-            audio.volume = volume
-            setSleepTimerLabel('Timer')
-            showToast('Sleep timer paused playback.')
-          }
-        }, 400)
-      }, mins * 60 * 1000)
-    }
-    setIsTimerOpen(false)
-  }
-
   // Stream Quality & Mode Handler
   const handleSetQuality = (quality, mode) => {
     setStreamQuality(quality)
@@ -596,28 +499,6 @@ export default function App() {
     }
   }
 
-  // Download Handler
-  const handleConfirmDownload = async (track, lyricsMode) => {
-    setIsDownloading(true)
-    setDownloadProgress('Starting...')
-    try {
-      const result = await downloadTrackWithMetadata(track, lyricsMode, (msg) => {
-        setDownloadProgress(msg)
-      })
-      setIsDownloading(false)
-      setDownloadModalTrack(null)
-      showToast(
-        result.lyricsUnavailable
-          ? 'M4A downloaded with cover art; lyrics were unavailable.'
-          : 'High-fidelity M4A download completed.'
-      )
-    } catch (err) {
-      setIsDownloading(false)
-      setDownloadProgress(`Error: ${err.message}`)
-      showToast(err.message || 'Download failed', true)
-    }
-  }
-
   // Setup Media Session Action Handlers
   useEffect(() => {
     if (!('mediaSession' in navigator)) return
@@ -635,7 +516,7 @@ export default function App() {
     }
   }, [])
 
-  // Keyboard Shortcuts Listener (bound ONCE on mount with stateRef to eliminate churn)
+  // Keyboard Shortcuts Listener
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
@@ -660,24 +541,16 @@ export default function App() {
         handleVolumeChange(Math.max(0, stateRef.current.volume - 0.05))
       } else if (e.key === 'm' || e.key === 'M') {
         handleVolumeChange(stateRef.current.volume > 0 ? 0 : 0.8)
-      } else if (e.key === 'l' || e.key === 'L') {
-        setIsLyricsOpen((prev) => !prev)
       } else if (e.key === 'q' || e.key === 'Q') {
         setIsQueueOpen((prev) => !prev)
-      } else if (e.key === 'e' || e.key === 'E') {
-        setIsEqOpen((prev) => !prev)
       } else if (e.key === 's' || e.key === 'S') {
         setShuffle((prev) => !prev)
       } else if (e.key === 'r' || e.key === 'R') {
         setRepeat((prev) => (prev === 'none' ? 'all' : prev === 'all' ? 'one' : 'none'))
       } else if (e.key === 'Escape') {
         setIsQueueOpen(false)
-        setIsLyricsOpen(false)
-        setIsEqOpen(false)
-        setIsTimerOpen(false)
         setIsQualityOpen(false)
         setIsShortcutsOpen(false)
-        setDownloadModalTrack(null)
       }
     }
 
@@ -692,10 +565,8 @@ export default function App() {
           searchQuery={searchQuery}
           onSearchChange={handleSearchChange}
           onSearchClear={handleSearchClear}
-          onOpenEq={() => setIsEqOpen(true)}
-          onOpenTimer={() => setIsTimerOpen(true)}
           onOpenQuality={() => setIsQualityOpen(true)}
-          timerLabel={sleepTimerLabel}
+          onOpenShortcuts={() => setIsShortcutsOpen(true)}
           qualityLabel={streamQuality.replace('kbps', 'K')}
           searchInputRef={searchInputRef}
         />
@@ -728,7 +599,7 @@ export default function App() {
                 onPlay={() => playTrackAtIndex(idx)}
                 onToggleLike={handleToggleLike}
                 onAddToQueue={handleAddToQueue}
-                onDownload={(t) => setDownloadModalTrack(t)}
+                onDownload={(t) => handleDirectDownload(t)}
                 onAlbumClick={(albumId) => handleCardClick(albumId, 'albums')}
               />
             ))}
@@ -827,13 +698,12 @@ export default function App() {
         }}
         onSeek={handleSeek}
         onVolumeChange={handleVolumeChange}
-        onToggleLyrics={() => setIsLyricsOpen((prev) => !prev)}
         onToggleQueue={() => setIsQueueOpen((prev) => !prev)}
-        onOpenDownload={(t) => setDownloadModalTrack(t)}
+        onDownload={(t) => handleDirectDownload(t)}
         visualizerRef={visualizerCanvasRef}
       />
 
-      {/* Drawers */}
+      {/* Queue Drawer */}
       <QueueDrawer
         isOpen={isQueueOpen}
         queue={queue}
@@ -852,52 +722,7 @@ export default function App() {
         }}
       />
 
-      <LyricsDrawer
-        isOpen={isLyricsOpen}
-        track={currentTrack}
-        lyricsLines={lyricsLines}
-        currentTime={currentTime}
-        isLoading={isLyricsLoading}
-        onClose={() => setIsLyricsOpen(false)}
-        onCopyLyrics={() => {
-          if (rawLyrics) {
-            navigator.clipboard.writeText(rawLyrics)
-            showToast('Lyrics copied to clipboard.')
-          }
-        }}
-        onExportLrc={() => {
-          if (rawLyrics && currentTrack) {
-            const lrc = createLrcFile(rawLyrics, currentTrack)
-            const blob = new Blob([lrc], { type: 'text/plain;charset=utf-8' })
-            const url = URL.createObjectURL(blob)
-            const a = document.createElement('a')
-            a.href = url
-            a.download = `${currentTrack.name || 'lyrics'}.lrc`
-            document.body.appendChild(a)
-            a.click()
-            a.remove()
-            setTimeout(() => URL.revokeObjectURL(url), 60000)
-            showToast('LRC file exported.')
-          }
-        }}
-      />
-
-      {/* Modals */}
-      <EqualizerModal
-        isOpen={isEqOpen}
-        onClose={() => setIsEqOpen(false)}
-        eqBandsState={eqBandsState}
-        onBandChange={handleBandChange}
-        onPresetApply={handlePresetApply}
-      />
-
-      <SleepTimerModal
-        isOpen={isTimerOpen}
-        onClose={() => setIsTimerOpen(false)}
-        currentTimer={sleepTimerValue}
-        onSetTimer={handleSetSleepTimer}
-      />
-
+      {/* Quality Modal */}
       <QualityModal
         isOpen={isQualityOpen}
         onClose={() => setIsQualityOpen(false)}
@@ -906,15 +731,7 @@ export default function App() {
         onSetQuality={handleSetQuality}
       />
 
-      <DownloadModal
-        isOpen={Boolean(downloadModalTrack)}
-        track={downloadModalTrack}
-        onClose={() => setDownloadModalTrack(null)}
-        onConfirmDownload={handleConfirmDownload}
-        isDownloading={isDownloading}
-        progressText={downloadProgress}
-      />
-
+      {/* Shortcuts Modal */}
       <ShortcutsModal
         isOpen={isShortcutsOpen}
         onClose={() => setIsShortcutsOpen(false)}

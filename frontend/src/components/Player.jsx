@@ -10,7 +10,6 @@ import {
   Volume2,
   VolumeX,
   ListMusic,
-  FileText,
   Download
 } from 'lucide-react'
 import { formatDuration } from '../utils/helpers.js'
@@ -31,9 +30,8 @@ export function Player({
   onToggleRepeat,
   onSeek,
   onVolumeChange,
-  onToggleLyrics,
   onToggleQueue,
-  onOpenDownload,
+  onDownload,
   visualizerRef
 }) {
   const progressBarRef = useRef(null)
@@ -200,18 +198,15 @@ export function Player({
           />
         </div>
 
-        <button className="transport-btn" onClick={onToggleLyrics} title="Synchronized Lyrics" aria-label="Toggle Synchronized Lyrics drawer">
-          <FileText size={16} />
-        </button>
         <button className="transport-btn" onClick={onToggleQueue} title="Queue" aria-label="Toggle Playing Queue drawer">
           <ListMusic size={16} />
         </button>
         <button
-          className="transport-btn"
-          onClick={() => currentTrack && onOpenDownload(currentTrack)}
+          className="transport-btn btn-action-dl"
+          onClick={() => currentTrack && onDownload(currentTrack)}
           disabled={!currentTrack}
-          title="Download Current Track"
-          aria-label="Download currently playing track"
+          title="Direct Download (320kbps M4A with cover art)"
+          aria-label="Direct download currently playing track"
         >
           <Download size={16} />
         </button>

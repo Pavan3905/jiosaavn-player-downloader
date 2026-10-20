@@ -1,14 +1,12 @@
 import React from 'react'
-import { Search, Sliders, Moon, Disc3, X } from 'lucide-react'
+import { Search, Disc3, Keyboard, X } from 'lucide-react'
 
 export function Header({
   searchQuery,
   onSearchChange,
   onSearchClear,
-  onOpenEq,
-  onOpenTimer,
   onOpenQuality,
-  timerLabel,
+  onOpenShortcuts,
   qualityLabel,
   searchInputRef
 }) {
@@ -35,17 +33,24 @@ export function Header({
       </div>
 
       <div className="top-controls">
-        <button className="btn-pill" onClick={onOpenEq} title="Equalizer" aria-label="Open Equalizer settings">
-          <Sliders size={15} />
-          <span className="btn-label">Equalizer</span>
-        </button>
-        <button className="btn-pill" onClick={onOpenTimer} title={`Sleep Timer: ${timerLabel}`} aria-label={`Sleep Timer settings, currently: ${timerLabel}`}>
-          <Moon size={15} />
-          <span className="btn-label">{timerLabel}</span>
-        </button>
-        <button className="btn-pill" onClick={onOpenQuality} title={`Audio Quality: ${qualityLabel}`} aria-label={`Audio Quality settings, currently: ${qualityLabel}`}>
+        <button
+          className="btn-pill"
+          onClick={onOpenQuality}
+          title={`Audio Quality: ${qualityLabel}`}
+          aria-label={`Audio Quality settings, currently: ${qualityLabel}`}
+        >
           <Disc3 size={15} />
           <span className="btn-label">{qualityLabel}</span>
+        </button>
+
+        <button
+          className="btn-pill"
+          onClick={onOpenShortcuts}
+          title="Keyboard Shortcuts"
+          aria-label="View Keyboard Shortcuts"
+        >
+          <Keyboard size={15} />
+          <span className="btn-label">Shortcuts</span>
         </button>
       </div>
     </header>
