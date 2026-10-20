@@ -75,6 +75,18 @@ export default function App() {
   const [cachedCards, setCachedCards] = useState([])
   const [isDownloadingCollection, setIsDownloadingCollection] = useState(false)
 
+  // Lock body scroll when Full Screen is open
+  useEffect(() => {
+    if (isFullScreenOpen) {
+      document.body.style.overflow = 'hidden'
+    } else {
+      document.body.style.overflow = ''
+    }
+    return () => {
+      document.body.style.overflow = ''
+    }
+  }, [isFullScreenOpen])
+
   // Toast State
   const [toast, setToast] = useState({ message: '', isError: false, isVisible: false })
   const toastTimeoutRef = useRef(null)
@@ -108,10 +120,9 @@ export default function App() {
     }, 3000)
   }, [])
 
-  // Keep isPlayingRef updated and sync visualizer
+  // Keep isPlayingRef updated and sync media session
   useEffect(() => {
     isPlayingRef.current = isPlaying
-    triggerVisualizer()
     if ('mediaSession' in navigator) {
       navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused'
     }

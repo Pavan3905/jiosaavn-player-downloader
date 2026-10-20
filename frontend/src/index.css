@@ -1334,6 +1334,12 @@ a {
   background: linear-gradient(180deg, #14281e 0%, #0c1611 40%, #060907 100%);
   color: #ffffff;
   animation: fsSlideUp 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.fs-player-overlay::-webkit-scrollbar {
+  display: none;
 }
 
 @keyframes fsSlideUp {
