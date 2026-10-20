@@ -87,6 +87,46 @@ export default function App() {
     }
   }, [isFullScreenOpen])
 
+  // PWA Save as App / Install State
+  const [installPrompt, setInstallPrompt] = useState(null)
+
+  useEffect(() => {
+    const handleBeforeInstall = (e) => {
+      e.preventDefault()
+      setInstallPrompt(e)
+    }
+
+    const handleAppInstalled = () => {
+      setInstallPrompt(null)
+      showToast('✓ JioSaavn installed as app!')
+    }
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall)
+    window.addEventListener('appinstalled', handleAppInstalled)
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstall)
+      window.removeEventListener('appinstalled', handleAppInstalled)
+    }
+  }, [])
+
+  const handleInstallApp = async () => {
+    if (!installPrompt) {
+      showToast('To save as app: Click the Install icon in your browser address bar or menu.')
+      return
+    }
+    installPrompt.prompt()
+    try {
+      const { outcome } = await installPrompt.userChoice
+      if (outcome === 'accepted') {
+        setInstallPrompt(null)
+        showToast('Installing JioSaavn App...')
+      }
+    } catch {
+      // ignore
+    }
+  }
+
   // Toast State
   const [toast, setToast] = useState({ message: '', isError: false, isVisible: false })
   const toastTimeoutRef = useRef(null)
@@ -645,6 +685,8 @@ export default function App() {
           theme={theme}
           onToggleTheme={handleToggleTheme}
           searchInputRef={searchInputRef}
+          installPrompt={installPrompt}
+          onInstallApp={handleInstallApp}
         />
 
         <FilterBar activeScope={activeScope} onScopeChange={handleScopeChange} />

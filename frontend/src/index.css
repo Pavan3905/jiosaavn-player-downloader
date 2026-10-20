@@ -246,6 +246,20 @@ a {
   transform: scale(0.97);
 }
 
+.btn-install-app {
+  background: var(--accent-soft);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.btn-install-app:hover {
+  background: var(--accent);
+  color: #04140b;
+  border-color: var(--accent);
+  box-shadow: 0 4px 14px var(--accent-glow);
+}
+
 /* Category Chips */
 .filter-bar {
   display: flex;

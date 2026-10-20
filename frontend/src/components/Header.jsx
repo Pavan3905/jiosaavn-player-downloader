@@ -1,5 +1,5 @@
 import React from 'react'
-import { Search, Sun, Moon, X } from 'lucide-react'
+import { Search, Sun, Moon, X, AppWindow } from 'lucide-react'
 
 export function Header({
   searchQuery,
@@ -7,7 +7,9 @@ export function Header({
   onSearchClear,
   theme,
   onToggleTheme,
-  searchInputRef
+  searchInputRef,
+  installPrompt,
+  onInstallApp
 }) {
   return (
     <header className="top-header">
@@ -32,6 +34,18 @@ export function Header({
       </div>
 
       <div className="top-controls">
+        {installPrompt && (
+          <button
+            className="btn-pill btn-install-app"
+            onClick={onInstallApp}
+            title="Save as App (Install JioSaavn)"
+            aria-label="Save as App"
+          >
+            <AppWindow size={15} />
+            <span className="btn-label">Save as App</span>
+          </button>
+        )}
+
         <button
           className="btn-pill"
           onClick={onToggleTheme}
