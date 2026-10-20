@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { Loader2 } from 'lucide-react'
 import { Header } from './components/Header.jsx'
-import { FilterBar } from './components/FilterBar.jsx'
 import { TrackRow } from './components/TrackRow.jsx'
 import { MusicCard } from './components/MusicCard.jsx'
 import { Player } from './components/Player.jsx'
@@ -23,6 +22,7 @@ export default function App() {
   const searchAbortCtrlRef = useRef(null)
   const searchTimerRef = useRef(null)
   const playPromiseRef = useRef(null)
+  const topPlaylistsCacheRef = useRef([])
 
   // Theme State (Dark / Light)
   const [theme, setTheme] = useState(() => localStorage.getItem('saavn_theme') || 'dark')
@@ -51,8 +51,6 @@ export default function App() {
 
   // Search & Content State
   const [searchQuery, setSearchQuery] = useState('')
-  const [activeScope, setActiveScope] = useState('songs')
-  const [activeLanguage, setActiveLanguage] = useState('All')
   const [tracks, setTracks] = useState([])
   const [cards, setCards] = useState([])
   const [page, setPage] = useState(0)
@@ -61,8 +59,6 @@ export default function App() {
   const [isLoadingMore, setIsLoadingMore] = useState(false)
   const isLoadingMoreRef = useRef(false)
   const sentinelRef = useRef(null)
-  const [stageTitle, setStageTitle] = useState('Discover')
-  const [resultsCount, setResultsCount] = useState('')
 
   // View State
   const [isFullScreenOpen, setIsFullScreenOpen] = useState(false)
@@ -400,58 +396,30 @@ export default function App() {
     }
   }
 
-  const getSearchDefaultQuery = (scope = activeScope, lang = activeLanguage) => {
-    if (scope === 'songs') {
-      return lang === 'All' ? 'trending indian hits' : `trending ${lang.toLowerCase()} hits`
-    }
-    return 'top hits'
-  }
-
-  const getDefaultStageTitle = (scope = activeScope, lang = activeLanguage) => {
-    if (scope === 'songs') {
-      return lang === 'All' ? 'Trending Indian Hits' : `Trending ${lang} Hits`
-    }
-    return 'Featured Releases'
-  }
-
-  const handleLanguageChange = (lang) => {
-    setActiveLanguage(lang)
-    setSearchQuery('')
-    setActiveCollection(null)
-    const q = lang === 'All' ? 'trending indian hits' : `trending ${lang.toLowerCase()} hits`
-    executeSearch(q, 'songs', 0, false, lang)
-  }
-
   const handleGoToAlbum = (album) => {
     if (!album) return
     if (album.id) {
       handleCardClick(album.id, 'albums')
     } else if (album.name && album.name !== 'Single') {
       setActiveCollection(null)
-      setActiveScope('albums')
-      executeSearch(album.name, 'albums', 0, false)
+      executeSearch(album.name, 0, false)
     }
   }
 
-  // Search Execution
-  const executeSearch = async (query, scope = activeScope, pageNum = 0, append = false, forcedLang = null) => {
-    const lang = forcedLang || activeLanguage
-    const isDefaultQuery =
-      !query ||
-      !query.trim() ||
-      query === 'trending indian hits' ||
-      query === 'top hits' ||
-      query.startsWith('trending ')
-
-    const effectiveQuery = isDefaultQuery ? getSearchDefaultQuery(scope, lang) : query.trim()
-
+  // Fetch top, best genuine editorial playlists from JioSaavn
+  const fetchTopPlaylists = async (pageNum = 0, append = false) => {
     if (!append) {
       if (searchAbortCtrlRef.current) searchAbortCtrlRef.current.abort()
       searchAbortCtrlRef.current = new AbortController()
       setIsLoading(true)
       setActiveCollection(null)
-      setStageTitle(isDefaultQuery ? getDefaultStageTitle(scope, lang) : `“${effectiveQuery}”`)
-      setResultsCount('Searching...')
+      setTracks([])
+      if (pageNum === 0 && topPlaylistsCacheRef.current.length > 0) {
+        setCards(topPlaylistsCacheRef.current)
+        setIsLoading(false)
+        setHasMore(true)
+        return
+      }
     } else {
       setIsLoadingMore(true)
       isLoadingMoreRef.current = true
@@ -460,65 +428,109 @@ export default function App() {
     const signal = searchAbortCtrlRef.current?.signal
 
     try {
-      if (scope === 'songs') {
-        const res = await fetch(
-          apiUrl(`/api/search/songs?query=${encodeURIComponent(effectiveQuery)}&page=${pageNum}&limit=20`),
-          { signal }
-        )
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const json = await res.json()
-        const rawResults = json.data?.results || []
-        const normalized = rawResults.map(normalizeTrack).filter(Boolean)
+      const queries =
+        pageNum === 0
+          ? ['trending', 'superhits', 'top hits', 'viral']
+          : ['punjabi hits', 'telugu hits', 'tamil hits', 'romantic hits']
 
-        setPage(pageNum)
-        setHasMore(normalized.length > 0)
+      const fetches = queries.map((q) =>
+        fetch(apiUrl(`/api/search/playlists?query=${encodeURIComponent(q)}&limit=25`), { signal })
+          .then((r) => (r.ok ? r.json() : { data: { results: [] } }))
+          .catch(() => ({ data: { results: [] } }))
+      )
 
-        if (append) {
-          setTracks((prev) => {
-            const seen = new Set(prev.map((t) => t.id))
-            const fresh = normalized.filter((t) => !seen.has(t.id))
-            return [...prev, ...fresh]
-          })
-          setQueue((prev) => {
-            const seen = new Set(prev.map((t) => t.id))
-            const fresh = normalized.filter((t) => !seen.has(t.id))
-            return [...prev, ...fresh]
-          })
-        } else {
-          setTracks(normalized)
-          setQueue(normalized)
-          setCards([])
-          setResultsCount(
-            `${json.data?.total ? json.data.total.toLocaleString() : normalized.length} tracks`
-          )
+      const responses = await Promise.all(fetches)
+      const combined = []
+      const seen = new Set()
+
+      if (append) {
+        cards.forEach((c) => seen.add(c.id))
+      }
+
+      for (const res of responses) {
+        const list = res.data?.results || []
+        for (const item of list) {
+          if (!item || !item.id || seen.has(item.id)) continue
+          if (item.songCount && item.songCount > 0) {
+            seen.add(item.id)
+            combined.push(item)
+          }
         }
+      }
+
+      setPage(pageNum)
+      setHasMore(combined.length > 0)
+
+      if (append) {
+        setCards((prev) => [...prev, ...combined])
       } else {
-        const res = await fetch(
-          apiUrl(`/api/search/${scope}?query=${encodeURIComponent(effectiveQuery)}&page=${pageNum}&limit=24`),
-          { signal }
-        )
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        const json = await res.json()
-        const items = json.data?.results || []
-        setPage(pageNum)
-        setHasMore(items.length >= 10)
+        setCards(combined)
+        topPlaylistsCacheRef.current = combined
+      }
+    } catch (err) {
+      if (err.name !== 'AbortError') {
+        showToast('Could not load top playlists', true)
+      }
+    } finally {
+      setIsLoading(false)
+      setIsLoadingMore(false)
+      isLoadingMoreRef.current = false
+    }
+  }
 
-        if (append) {
-          setCards((prev) => {
-            const seen = new Set(prev.map((c) => c.id))
-            const fresh = items.filter((c) => !seen.has(c.id))
-            return [...prev, ...fresh]
-          })
-        } else {
-          setCards(items)
-          setTracks([])
-          setResultsCount(`${json.data?.total ? json.data.total.toLocaleString() : items.length} ${scope}`)
-        }
+  // Search songs when query is present
+  const executeSearch = async (query, pageNum = 0, append = false) => {
+    const trimmed = (query || '').trim()
+    if (!trimmed) {
+      fetchTopPlaylists(0, false)
+      return
+    }
+
+    if (!append) {
+      if (searchAbortCtrlRef.current) searchAbortCtrlRef.current.abort()
+      searchAbortCtrlRef.current = new AbortController()
+      setIsLoading(true)
+      setActiveCollection(null)
+      setCards([])
+    } else {
+      setIsLoadingMore(true)
+      isLoadingMoreRef.current = true
+    }
+
+    const signal = searchAbortCtrlRef.current?.signal
+
+    try {
+      const res = await fetch(
+        apiUrl(`/api/search/songs?query=${encodeURIComponent(trimmed)}&page=${pageNum}&limit=25`),
+        { signal }
+      )
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+      const json = await res.json()
+      const rawResults = json.data?.results || []
+      const normalized = rawResults.map(normalizeTrack).filter(Boolean)
+
+      setPage(pageNum)
+      setHasMore(normalized.length > 0)
+
+      if (append) {
+        setTracks((prev) => {
+          const seen = new Set(prev.map((t) => t.id))
+          const fresh = normalized.filter((t) => !seen.has(t.id))
+          return [...prev, ...fresh]
+        })
+        setQueue((prev) => {
+          const seen = new Set(prev.map((t) => t.id))
+          const fresh = normalized.filter((t) => !seen.has(t.id))
+          return [...prev, ...fresh]
+        })
+      } else {
+        setTracks(normalized)
+        setQueue(normalized)
+        setCards([])
       }
     } catch (err) {
       if (err.name !== 'AbortError') {
         showToast('Could not load search results', true)
-        setResultsCount('Error')
       }
     } finally {
       setIsLoading(false)
@@ -539,9 +551,12 @@ export default function App() {
     }
     isLoadingMoreRef.current = true
     setIsLoadingMore(true)
-    const effectiveQ = searchQuery || getSearchDefaultQuery(activeScope, activeLanguage)
-    executeSearch(effectiveQ, activeScope, page + 1, true)
-  }, [isLoading, hasMore, activeCollection, searchQuery, activeScope, activeLanguage, page])
+    if (searchQuery.trim()) {
+      executeSearch(searchQuery, page + 1, true)
+    } else {
+      fetchTopPlaylists(page + 1, true)
+    }
+  }, [isLoading, hasMore, activeCollection, searchQuery, page])
 
   useEffect(() => {
     const sentinel = sentinelRef.current
@@ -583,33 +598,28 @@ export default function App() {
     setSearchQuery(val)
     clearTimeout(searchTimerRef.current)
     searchTimerRef.current = setTimeout(() => {
-      executeSearch(val, activeScope, 0, false)
+      if (!val.trim()) {
+        fetchTopPlaylists(0, false)
+      } else {
+        executeSearch(val, 0, false)
+      }
     }, 400)
   }
 
   const handleSearchClear = () => {
     setSearchQuery('')
     setActiveCollection(null)
-    executeSearch(getSearchDefaultQuery(activeScope, activeLanguage), activeScope, 0, false)
-  }
-
-  const handleScopeChange = (newScope) => {
-    setActiveCollection(null)
-    setActiveScope(newScope)
-    const q = searchQuery || getSearchDefaultQuery(newScope, activeLanguage)
-    executeSearch(q, newScope, 0, false)
+    fetchTopPlaylists(0, false)
   }
 
   // Load Album / Playlist / Artist details
-  const handleCardClick = async (id, type) => {
+  const handleCardClick = async (id, type = 'playlists') => {
     setIsLoading(true)
-    setStageTitle('Loading...')
-    setResultsCount('Fetching...')
     if (cards.length > 0) {
       setCachedCards(cards)
     }
     try {
-      const endpoint = apiUrl(`/api/${type}?id=${encodeURIComponent(id)}`)
+      const endpoint = apiUrl(`/api/${type}?id=${encodeURIComponent(id)}${type === 'playlists' ? '&limit=100' : ''}`)
       const res = await fetch(endpoint)
       if (!res.ok) throw new Error(`${type} not found`)
       const json = await res.json()
@@ -629,7 +639,7 @@ export default function App() {
       const colObj = {
         id: data.id || id,
         type,
-        name: decodeHtmlEntities(data.name || 'Collection'),
+        name: decodeHtmlEntities(data.name || data.title || 'Collection'),
         image: imgUrl,
         year: data.year || '',
         artist: artistNames,
@@ -638,8 +648,6 @@ export default function App() {
       }
 
       setActiveCollection(colObj)
-      setStageTitle(colObj.name)
-      setResultsCount(`${normalized.length} tracks`)
       setTracks(normalized)
       setQueue(normalized)
       setHasMore(false)
@@ -652,13 +660,13 @@ export default function App() {
 
   const handleBackFromCollection = () => {
     setActiveCollection(null)
-    if (cachedCards.length > 0) {
+    setTracks([])
+    if (topPlaylistsCacheRef.current.length > 0) {
+      setCards(topPlaylistsCacheRef.current)
+    } else if (cachedCards.length > 0) {
       setCards(cachedCards)
-      setTracks([])
-      setStageTitle(searchQuery ? `“${searchQuery}”` : getDefaultStageTitle(activeScope, activeLanguage))
-      setResultsCount(`${cachedCards.length} ${activeScope}`)
     } else {
-      executeSearch(searchQuery || getSearchDefaultQuery(activeScope, activeLanguage), activeScope, 0, false)
+      fetchTopPlaylists(0, false)
     }
   }
 
@@ -701,9 +709,9 @@ export default function App() {
     showToast(`✓ Completed download: ${successCount}/${tracks.length} tracks`)
   }
 
-  // Initial load: Indian Trending Songs
+  // Initial load: Top genuine playlists
   useEffect(() => {
-    executeSearch('trending indian hits', 'songs', 0, false)
+    fetchTopPlaylists(0, false)
   }, [])
 
 
@@ -752,14 +760,11 @@ export default function App() {
         handleVolumeChange(stateRef.current.volume > 0 ? 0 : 0.8)
       } else if (e.key === 'f' || e.key === 'F') {
         if (currentTrack) setIsFullScreenOpen((prev) => !prev)
-      } else if (e.key === 'q' || e.key === 'Q') {
-        setIsQueueOpen((prev) => !prev)
       } else if (e.key === 's' || e.key === 'S') {
         setShuffle((prev) => !prev)
       } else if (e.key === 'r' || e.key === 'R') {
         setRepeat((prev) => (prev === 'none' ? 'all' : prev === 'all' ? 'one' : 'none'))
       } else if (e.key === 'Escape') {
-        setIsQueueOpen(false)
         setIsFullScreenOpen(false)
       }
     }
@@ -782,15 +787,8 @@ export default function App() {
           onInstallApp={handleInstallApp}
         />
 
-        <FilterBar
-          activeScope={activeScope}
-          onScopeChange={handleScopeChange}
-          activeLanguage={activeLanguage}
-          onLanguageChange={handleLanguageChange}
-        />
-
-        {/* Collection Hero if viewing an album, playlist, or artist */}
-        {activeCollection ? (
+        {/* Collection Hero if viewing an album or playlist */}
+        {activeCollection && (
           <CollectionHero
             collection={activeCollection}
             onBack={handleBackFromCollection}
@@ -799,14 +797,10 @@ export default function App() {
             onDownloadAll={handleDownloadCollection}
             isDownloadingAll={isDownloadingCollection}
           />
-        ) : (
-          <div className="section-meta">
-            <h2 className="section-title">{stageTitle}</h2>
-          </div>
         )}
 
         {/* Tracks Table (Rendered for songs search OR when viewing an active collection) */}
-        {tracks.length > 0 && (activeScope === 'songs' || activeCollection) && (
+        {tracks.length > 0 && (activeCollection || searchQuery.trim()) && (
           <div className="track-table">
             <div className="table-header">
               <span>#</span>
@@ -831,15 +825,15 @@ export default function App() {
           </div>
         )}
 
-        {/* Card Grid (Albums, Playlists, Artists) when not viewing an active collection */}
-        {cards.length > 0 && activeScope !== 'songs' && !activeCollection && (
+        {/* Top Genuine Playlists Grid (Default view: no heading, just top genuine playlists) */}
+        {cards.length > 0 && !activeCollection && !searchQuery.trim() && (
           <div className="card-grid">
             {cards.map((item) => (
               <MusicCard
                 key={item.id}
                 item={item}
-                type={activeScope}
-                onClick={handleCardClick}
+                type="playlists"
+                onClick={(id) => handleCardClick(id, 'playlists')}
               />
             ))}
           </div>
@@ -850,7 +844,7 @@ export default function App() {
           <div ref={sentinelRef} className="infinite-scroll-sentinel">
             <div className="infinite-scroll-loader">
               <Loader2 size={18} className="spin-loader" />
-              <span>Loading more {activeScope === 'songs' ? 'songs' : activeScope}...</span>
+              <span>Loading more playlists...</span>
             </div>
           </div>
         )}
@@ -858,7 +852,7 @@ export default function App() {
         {/* Shimmer Skeleton Loading */}
         {isLoading && tracks.length === 0 && cards.length === 0 && (
           <div className="skeleton-container">
-            {activeScope === 'songs' ? (
+            {searchQuery.trim() ? (
               <div className="track-table">
                 {[...Array(8)].map((_, i) => (
                   <div key={i} className="skeleton-row">
@@ -875,7 +869,7 @@ export default function App() {
               </div>
             ) : (
               <div className="card-grid">
-                {[...Array(8)].map((_, i) => (
+                {[...Array(12)].map((_, i) => (
                   <div key={i} className="skeleton-card">
                     <div className="skeleton-block skeleton-card-cover"></div>
                     <div className="skeleton-block skeleton-card-title"></div>
@@ -891,7 +885,7 @@ export default function App() {
         {!isLoading && tracks.length === 0 && cards.length === 0 && !activeCollection && (
           <div className="empty-box">
             <h3>No results found</h3>
-            <p>Try searching for a different song, artist, album, or playlist name.</p>
+            <p>Try searching for a different song or playlist name.</p>
           </div>
         )}
 
