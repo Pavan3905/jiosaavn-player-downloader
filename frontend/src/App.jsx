@@ -7,7 +7,6 @@ import { Player } from './components/Player.jsx'
 import { FullScreenPlayer } from './components/FullScreenPlayer.jsx'
 import { CollectionHero } from './components/CollectionHero.jsx'
 import { QueueDrawer } from './components/QueueDrawer.jsx'
-import { QualityModal } from './components/Modals.jsx'
 import { Toast } from './components/Toast.jsx'
 import {
   normalizeTrack,
@@ -16,12 +15,10 @@ import {
   apiUrl
 } from './utils/helpers.js'
 import { downloadTrackWithMetadata, resolveTrackDetails } from './utils/audioTagger.js'
-import { initWebAudio, triggerVisualizer } from './utils/audioContext.js'
 
 export default function App() {
   const audioRef = useRef(new Audio())
   const searchInputRef = useRef(null)
-  const visualizerCanvasRef = useRef(null)
   const isPlayingRef = useRef(false)
   const searchAbortCtrlRef = useRef(null)
   const searchTimerRef = useRef(null)
@@ -49,8 +46,8 @@ export default function App() {
   const [volume, setVolume] = useState(0.8)
   const [currentTime, setCurrentTime] = useState(0)
   const [duration, setDuration] = useState(0)
-  const [streamQuality, setStreamQuality] = useState(() => localStorage.getItem('saavn_quality') || '320kbps')
-  const [streamMode, setStreamMode] = useState(() => localStorage.getItem('saavn_stream_mode') || 'proxy')
+  const streamQuality = '320kbps'
+  const streamMode = 'proxy'
   const [likedTracks, setLikedTracks] = useState(() => {
     try {
       return JSON.parse(localStorage.getItem('saavn_favorites')) || []
@@ -72,7 +69,6 @@ export default function App() {
 
   // Modals & Drawers State
   const [isQueueOpen, setIsQueueOpen] = useState(false)
-  const [isQualityOpen, setIsQualityOpen] = useState(false)
   const [isFullScreenOpen, setIsFullScreenOpen] = useState(false)
   const [downloadingTrackId, setDownloadingTrackId] = useState(null)
   const [activeCollection, setActiveCollection] = useState(null)
@@ -240,9 +236,6 @@ export default function App() {
 
     audio.src = finalStreamUrl
 
-    // Init web audio once user interacts
-    initWebAudio(audio, visualizerCanvasRef.current, isPlayingRef)
-
     playPromiseRef.current = audio.play()
     playPromiseRef.current
       .then(() => {
@@ -366,7 +359,7 @@ export default function App() {
   const handleDirectDownload = async (track) => {
     if (!track || downloadingTrackId) return
     setDownloadingTrackId(track.id)
-    showToast(`Downloading “${track.name}” (320kbps M4A)...`)
+    showToast(`Downloading “${track.name}”...`)
     try {
       await downloadTrackWithMetadata(track, 'none', (msg) => {
         showToast(msg)
@@ -569,29 +562,7 @@ export default function App() {
     executeSearch('top hits', 'songs', 0, false)
   }, [])
 
-  // Stream Quality & Mode Handler
-  const handleSetQuality = (quality, mode) => {
-    setStreamQuality(quality)
-    localStorage.setItem('saavn_quality', quality)
-    if (mode) {
-      setStreamMode(mode)
-      localStorage.setItem('saavn_stream_mode', mode)
-    }
-    showToast(`Quality: ${quality}${mode === 'direct' ? ' (Direct CDN)' : ''}`)
-    setIsQualityOpen(false)
 
-    const audio = audioRef.current
-    if (currentTrack && audio.src) {
-      const prevTime = audio.currentTime
-      const wasPaused = audio.paused
-      const newUrl = getAudioUrlFromTrack(currentTrack, quality)
-      if (newUrl) {
-        audio.src = (mode || streamMode) === 'direct' ? newUrl : apiUrl(`/api/stream?url=${encodeURIComponent(newUrl)}`)
-        audio.currentTime = prevTime
-        if (!wasPaused) audio.play().catch(() => {})
-      }
-    }
-  }
 
   // Setup Media Session Action Handlers
   useEffect(() => {
@@ -645,7 +616,6 @@ export default function App() {
         setRepeat((prev) => (prev === 'none' ? 'all' : prev === 'all' ? 'one' : 'none'))
       } else if (e.key === 'Escape') {
         setIsQueueOpen(false)
-        setIsQualityOpen(false)
         setIsFullScreenOpen(false)
       }
     }
@@ -661,8 +631,6 @@ export default function App() {
           searchQuery={searchQuery}
           onSearchChange={handleSearchChange}
           onSearchClear={handleSearchClear}
-          onOpenQuality={() => setIsQualityOpen(true)}
-          qualityLabel={streamQuality.replace('kbps', 'K')}
           theme={theme}
           onToggleTheme={handleToggleTheme}
           searchInputRef={searchInputRef}
@@ -793,7 +761,6 @@ export default function App() {
         volume={volume}
         currentTime={currentTime}
         duration={duration}
-        streamQuality={streamQuality}
         onTogglePlayPause={handleTogglePlayPause}
         onPlayPrev={handlePlayPrev}
         onPlayNext={handlePlayNext}
@@ -812,7 +779,6 @@ export default function App() {
         onDownload={(t) => handleDirectDownload(t)}
         onOpenFullScreen={() => setIsFullScreenOpen(true)}
         isDownloading={downloadingTrackId === currentTrack?.id}
-        visualizerRef={visualizerCanvasRef}
       />
 
       {/* Full Screen Player Mode */}
@@ -826,7 +792,6 @@ export default function App() {
         volume={volume}
         currentTime={currentTime}
         duration={duration}
-        streamQuality={streamQuality}
         isLiked={likedTracks.some((t) => t.id === currentTrack?.id)}
         onToggleLike={handleToggleLike}
         onTogglePlayPause={handleTogglePlayPause}
@@ -846,7 +811,6 @@ export default function App() {
         onToggleQueue={() => setIsQueueOpen((prev) => !prev)}
         onDownload={(t) => handleDirectDownload(t)}
         isDownloading={downloadingTrackId === currentTrack?.id}
-        visualizerRef={visualizerCanvasRef}
       />
 
       {/* Queue Drawer */}
@@ -866,15 +830,6 @@ export default function App() {
           setCurrentIndex(currentTrack ? 0 : -1)
           showToast('Queue cleared')
         }}
-      />
-
-      {/* Quality Modal */}
-      <QualityModal
-        isOpen={isQualityOpen}
-        onClose={() => setIsQualityOpen(false)}
-        currentQuality={streamQuality}
-        currentStreamMode={streamMode}
-        onSetQuality={handleSetQuality}
       />
 
       {/* Toast Feedback */}

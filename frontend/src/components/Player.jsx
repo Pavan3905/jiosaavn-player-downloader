@@ -24,7 +24,6 @@ export function Player({
   volume,
   currentTime,
   duration,
-  streamQuality,
   onTogglePlayPause,
   onPlayPrev,
   onPlayNext,
@@ -35,8 +34,7 @@ export function Player({
   onToggleQueue,
   onDownload,
   onOpenFullScreen,
-  isDownloading,
-  visualizerRef
+  isDownloading
 }) {
   const progressBarRef = useRef(null)
   const [hoverTime, setHoverTime] = React.useState(null)
@@ -145,7 +143,6 @@ export function Player({
             <div className="now-playing-text">
               <div className="now-playing-title">{currentTrack.name}</div>
               <div className="now-playing-artist">{currentTrack.artist}</div>
-              <span className="quality-tag">{streamQuality} AAC</span>
             </div>
           </>
         ) : (
@@ -221,7 +218,12 @@ export function Player({
       </div>
 
       <div className="player-tools">
-        <canvas ref={visualizerRef} className="visualizer-canvas" width={44} height={22} aria-hidden="true" />
+        <div className={`animated-wave-eq ${isPlaying ? 'playing' : ''}`} aria-hidden="true" title="Audio visualizer">
+          <span className="eq-bar bar-1" />
+          <span className="eq-bar bar-2" />
+          <span className="eq-bar bar-3" />
+          <span className="eq-bar bar-4" />
+        </div>
 
         <div className="vol-wrap">
           <button
@@ -259,8 +261,8 @@ export function Player({
           className="transport-btn btn-action-dl"
           onClick={() => currentTrack && onDownload(currentTrack)}
           disabled={!currentTrack || isDownloading}
-          title="Direct Download (320kbps M4A with cover art)"
-          aria-label="Direct download currently playing track"
+          title="Download Song"
+          aria-label="Download song"
         >
           {isDownloading ? <Loader2 size={16} className="spin-loader" /> : <Download size={16} />}
         </button>

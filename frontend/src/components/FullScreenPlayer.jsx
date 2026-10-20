@@ -13,8 +13,7 @@ import {
   ListMusic,
   Download,
   Heart,
-  Loader2,
-  Check
+  Loader2
 } from 'lucide-react'
 import { formatDuration } from '../utils/helpers.js'
 
@@ -28,7 +27,6 @@ export function FullScreenPlayer({
   volume,
   currentTime,
   duration,
-  streamQuality,
   isLiked,
   onToggleLike,
   onTogglePlayPause,
@@ -40,13 +38,13 @@ export function FullScreenPlayer({
   onVolumeChange,
   onToggleQueue,
   onDownload,
-  isDownloading,
-  visualizerRef
+  isDownloading
 }) {
   const progressBarRef = useRef(null)
   const [hoverTime, setHoverTime] = useState(null)
   const [hoverPos, setHoverPos] = useState(0)
   const isDraggingRef = useRef(false)
+  const touchStartRef = useRef({ x: 0, y: 0, time: 0, isInteractive: false })
 
   if (!isOpen || !currentTrack) return null
 
@@ -63,7 +61,9 @@ export function FullScreenPlayer({
     isDraggingRef.current = true
     const pct = calcPctFromEvent(e)
     onSeek(pct * duration)
-    e.currentTarget.setPointerCapture?.(e.pointerId)
+    try {
+      e.currentTarget.setPointerCapture?.(e.pointerId)
+    } catch {}
   }
 
   const handlePointerMove = (e) => {
@@ -93,11 +93,10 @@ export function FullScreenPlayer({
     }
   }
 
-  const touchStartRef = useRef({ x: 0, y: 0, time: 0, isInteractive: false })
-
   const handleTouchStart = (e) => {
     const touch = e.touches[0]
-    const isInteractive = !!e.target.closest('.progress-bar-wrap, .vol-slider')
+    // Don't treat clicking buttons, volume or scrubber as swipe dismiss
+    const isInteractive = !!e.target.closest('button, input, .progress-bar-wrap, .vol-slider')
     touchStartRef.current = {
       x: touch.clientX,
       y: touch.clientY,
@@ -120,7 +119,10 @@ export function FullScreenPlayer({
   }
 
   const progressPct = duration > 0 ? (currentTime / duration) * 100 : 0
-  const artwork = currentTrack.coverImage || currentTrack.image || 'https://www.jiosaavn.com/_i/3.0/artist-default-music.png'
+  const artwork =
+    currentTrack.coverImage ||
+    currentTrack.image ||
+    'https://www.jiosaavn.com/_i/3.0/artist-default-music.png'
 
   return (
     <div
@@ -131,7 +133,7 @@ export function FullScreenPlayer({
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      {/* Blurred Ambient Backdrop */}
+      {/* Ambient Blurred Backdrop with Rich Saturated Glow */}
       <div
         className="fs-ambient-bg"
         style={{ backgroundImage: `url(${artwork})` }}
@@ -144,8 +146,8 @@ export function FullScreenPlayer({
         <div
           className="fs-drag-handle-wrap"
           onClick={onClose}
-          title="Swipe or click down to minimize"
-          aria-label="Swipe down to minimize"
+          title="Swipe or tap down to minimize"
+          aria-label="Minimize full screen player"
         >
           <span className="fs-drag-handle" />
         </div>
@@ -166,10 +168,10 @@ export function FullScreenPlayer({
             <span className="fs-header-title">{currentTrack.album?.name || 'Single'}</span>
           </div>
 
-          <span className="fs-quality-tag">{streamQuality} AAC</span>
+          <div style={{ width: 44, height: 44 }} aria-hidden="true" />
         </header>
 
-        {/* Center Stage: Artwork & Info */}
+        {/* Center Stage: Prominent Artwork & Song Info */}
         <div className="fs-center-stage">
           <div className="fs-art-container">
             <img
@@ -280,7 +282,16 @@ export function FullScreenPlayer({
 
           {/* Bottom Utility Tools */}
           <div className="fs-utility-row">
-            <canvas ref={visualizerRef} className="visualizer-canvas fs-visualizer" width={60} height={24} aria-hidden="true" />
+            <div
+              className={`animated-wave-eq fs-visualizer ${isPlaying ? 'playing' : ''}`}
+              aria-hidden="true"
+              title="Audio visualizer"
+            >
+              <span className="eq-bar bar-1" />
+              <span className="eq-bar bar-2" />
+              <span className="eq-bar bar-3" />
+              <span className="eq-bar bar-4" />
+            </div>
 
             <div className="fs-vol-box">
               <button
@@ -319,8 +330,8 @@ export function FullScreenPlayer({
                 className={`fs-icon-btn ${isDownloading ? 'downloading' : ''}`}
                 onClick={() => onDownload(currentTrack)}
                 disabled={isDownloading}
-                title="Direct Download (320kbps M4A with artwork)"
-                aria-label="Download song with artwork"
+                title="Download Song"
+                aria-label="Download song"
               >
                 {isDownloading ? <Loader2 size={22} className="spin-loader" /> : <Download size={22} />}
               </button>

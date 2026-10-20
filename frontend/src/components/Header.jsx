@@ -1,12 +1,10 @@
 import React from 'react'
-import { Search, Disc3, Sun, Moon, X } from 'lucide-react'
+import { Search, Sun, Moon, X } from 'lucide-react'
 
 export function Header({
   searchQuery,
   onSearchChange,
   onSearchClear,
-  onOpenQuality,
-  qualityLabel,
   theme,
   onToggleTheme,
   searchInputRef
@@ -34,16 +32,6 @@ export function Header({
       </div>
 
       <div className="top-controls">
-        <button
-          className="btn-pill"
-          onClick={onOpenQuality}
-          title={`Audio Quality: ${qualityLabel}`}
-          aria-label={`Audio Quality settings, currently: ${qualityLabel}`}
-        >
-          <Disc3 size={15} />
-          <span className="btn-label">{qualityLabel}</span>
-        </button>
-
         <button
           className="btn-pill"
           onClick={onToggleTheme}

@@ -94,7 +94,7 @@ export function TrackRow({
             onDownload(track)
           }}
           disabled={isDownloading}
-          title={isDownloading ? 'Downloading...' : 'Direct Download (320kbps M4A)'}
+          title={isDownloading ? 'Downloading...' : 'Download Song'}
           aria-label={`Download ${track.name}`}
         >
           {isDownloading ? <Loader2 size={15} className="spin-loader" /> : <Download size={15} />}
