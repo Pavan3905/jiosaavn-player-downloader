@@ -762,6 +762,38 @@ export default function App() {
           </div>
         )}
 
+        {/* Shimmer Skeleton Loading */}
+        {isLoading && tracks.length === 0 && cards.length === 0 && (
+          <div className="skeleton-container">
+            {activeScope === 'songs' ? (
+              <div className="track-table">
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="skeleton-row">
+                    <div className="skeleton-block skeleton-idx"></div>
+                    <div className="skeleton-block skeleton-thumb"></div>
+                    <div className="skeleton-col">
+                      <div className="skeleton-block skeleton-title"></div>
+                      <div className="skeleton-block skeleton-sub"></div>
+                    </div>
+                    <div className="skeleton-block skeleton-album"></div>
+                    <div className="skeleton-block skeleton-time"></div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="card-grid">
+                {[...Array(8)].map((_, i) => (
+                  <div key={i} className="skeleton-card">
+                    <div className="skeleton-block skeleton-card-cover"></div>
+                    <div className="skeleton-block skeleton-card-title"></div>
+                    <div className="skeleton-block skeleton-card-desc"></div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Empty state */}
         {!isLoading && tracks.length === 0 && cards.length === 0 && (
           <div className="empty-box">

@@ -37,13 +37,51 @@ export function Player({
   visualizerRef
 }) {
   const progressBarRef = useRef(null)
+  const [hoverTime, setHoverTime] = React.useState(null)
+  const [hoverPos, setHoverPos] = React.useState(0)
+  const isDraggingRef = useRef(false)
 
-  const handleProgressClick = (e) => {
+  const calcPctFromEvent = (e) => {
+    if (!duration || !progressBarRef.current) return 0
+    const rect = progressBarRef.current.getBoundingClientRect()
+    const clientX = e.clientX ?? (e.touches && e.touches[0]?.clientX) ?? 0
+    const clickX = clientX - rect.left
+    return Math.max(0, Math.min(1, clickX / rect.width))
+  }
+
+  const handlePointerDown = (e) => {
+    if (!duration) return
+    isDraggingRef.current = true
+    const pct = calcPctFromEvent(e)
+    onSeek(pct * duration)
+    e.currentTarget.setPointerCapture?.(e.pointerId)
+  }
+
+  const handlePointerMove = (e) => {
     if (!duration || !progressBarRef.current) return
     const rect = progressBarRef.current.getBoundingClientRect()
-    const clickX = e.clientX - rect.left
-    const pct = Math.max(0, Math.min(1, clickX / rect.width))
-    onSeek(pct * duration)
+    const pct = calcPctFromEvent(e)
+    setHoverTime(pct * duration)
+    setHoverPos(Math.max(0, Math.min(rect.width, (e.clientX ?? 0) - rect.left)))
+
+    if (isDraggingRef.current) {
+      onSeek(pct * duration)
+    }
+  }
+
+  const handlePointerUp = (e) => {
+    if (isDraggingRef.current) {
+      isDraggingRef.current = false
+      try {
+        e.currentTarget.releasePointerCapture?.(e.pointerId)
+      } catch {}
+    }
+  }
+
+  const handlePointerLeave = () => {
+    if (!isDraggingRef.current) {
+      setHoverTime(null)
+    }
   }
 
   const progressPct = duration > 0 ? (currentTime / duration) * 100 : 0
@@ -107,9 +145,21 @@ export function Player({
 
         <div className="scrub-container">
           <span className="time-code">{formatDuration(currentTime)}</span>
-          <div className="progress-bar-wrap" ref={progressBarRef} onClick={handleProgressClick}>
+          <div
+            className="progress-bar-wrap"
+            ref={progressBarRef}
+            onPointerDown={handlePointerDown}
+            onPointerMove={handlePointerMove}
+            onPointerUp={handlePointerUp}
+            onPointerLeave={handlePointerLeave}
+          >
             <div className="progress-fill" style={{ width: `${progressPct}%` }} />
             <div className="progress-handle" style={{ left: `${progressPct}%` }} />
+            {hoverTime !== null && (
+              <div className="scrub-tooltip" style={{ left: `${hoverPos}px` }}>
+                {formatDuration(hoverTime)}
+              </div>
+            )}
           </div>
           <span className="time-code">{formatDuration(duration)}</span>
         </div>

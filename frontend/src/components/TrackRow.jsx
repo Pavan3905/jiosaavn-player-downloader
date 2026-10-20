@@ -17,7 +17,15 @@ export function TrackRow({
   return (
     <div className={`track-row ${isCurrent ? 'playing' : ''}`}>
       <div className="track-idx">
-        <span>{index + 1}</span>
+        {isCurrent && isPlaying ? (
+          <div className="now-playing-wave" title="Currently Playing">
+            <span className="wave-bar bar-1"></span>
+            <span className="wave-bar bar-2"></span>
+            <span className="wave-bar bar-3"></span>
+          </div>
+        ) : (
+          <span>{index + 1}</span>
+        )}
         <button
           className="play-trigger"
           onClick={() => onPlay(track, index)}
@@ -37,7 +45,10 @@ export function TrackRow({
         />
         <div className="track-info">
           <div className="track-title">{track.name}</div>
-          <div className="track-subtitle">{track.artist}</div>
+          <div className="track-subtitle">
+            <span>{track.artist}</span>
+            <span className="mobile-dur-tag"> • {formatDuration(track.duration)}</span>
+          </div>
         </div>
       </div>
 

@@ -36,15 +36,15 @@ export function Header({
       <div className="top-controls">
         <button className="btn-pill" onClick={onOpenEq} title="Equalizer">
           <Sliders size={15} />
-          <span>Equalizer</span>
+          <span className="btn-label">Equalizer</span>
         </button>
-        <button className="btn-pill" onClick={onOpenTimer} title="Sleep Timer">
+        <button className="btn-pill" onClick={onOpenTimer} title={`Sleep Timer: ${timerLabel}`}>
           <Moon size={15} />
-          <span>{timerLabel}</span>
+          <span className="btn-label">{timerLabel}</span>
         </button>
-        <button className="btn-pill" onClick={onOpenQuality} title="Audio Quality">
+        <button className="btn-pill" onClick={onOpenQuality} title={`Audio Quality: ${qualityLabel}`}>
           <Disc3 size={15} />
-          <span>{qualityLabel}</span>
+          <span className="btn-label">{qualityLabel}</span>
         </button>
       </div>
     </header>
