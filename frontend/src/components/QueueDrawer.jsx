@@ -22,12 +22,13 @@ export function QueueDrawer({
                 style={{ padding: '4px 10px', fontSize: 11 }}
                 onClick={onClearQueue}
                 title="Clear Queue"
+                aria-label="Clear all tracks from queue"
               >
                 <Trash2 size={13} />
                 <span>Clear</span>
               </button>
             )}
-            <button className="drawer-close" onClick={onClose} title="Close">
+            <button className="drawer-close" onClick={onClose} title="Close" aria-label="Close queue drawer">
               <X size={16} />
             </button>
           </div>
@@ -50,7 +51,7 @@ export function QueueDrawer({
                   <img
                     className="queue-thumb"
                     src={track.image || 'https://www.jiosaavn.com/_i/3.0/artist-default-music.png'}
-                    alt=""
+                    alt={`${track.name} thumbnail`}
                     loading="lazy"
                   />
                   <div className="queue-meta">
@@ -64,6 +65,7 @@ export function QueueDrawer({
                       onRemoveIndex(idx)
                     }}
                     title="Remove"
+                    aria-label={`Remove ${track.name} from queue`}
                   >
                     <X size={14} />
                   </button>

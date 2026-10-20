@@ -21,12 +21,13 @@ export function Header({
           type="search"
           className="search-input"
           placeholder="Search songs, albums, artists, playlists..."
+          aria-label="Search songs, albums, artists, playlists"
           value={searchQuery}
           onChange={(e) => onSearchChange(e.target.value)}
           autoComplete="off"
         />
         {searchQuery && (
-          <button className="search-clear" onClick={onSearchClear} title="Clear">
+          <button className="search-clear" onClick={onSearchClear} title="Clear" aria-label="Clear search input">
             <X size={15} />
           </button>
         )}
@@ -34,15 +35,15 @@ export function Header({
       </div>
 
       <div className="top-controls">
-        <button className="btn-pill" onClick={onOpenEq} title="Equalizer">
+        <button className="btn-pill" onClick={onOpenEq} title="Equalizer" aria-label="Open Equalizer settings">
           <Sliders size={15} />
           <span className="btn-label">Equalizer</span>
         </button>
-        <button className="btn-pill" onClick={onOpenTimer} title={`Sleep Timer: ${timerLabel}`}>
+        <button className="btn-pill" onClick={onOpenTimer} title={`Sleep Timer: ${timerLabel}`} aria-label={`Sleep Timer settings, currently: ${timerLabel}`}>
           <Moon size={15} />
           <span className="btn-label">{timerLabel}</span>
         </button>
-        <button className="btn-pill" onClick={onOpenQuality} title={`Audio Quality: ${qualityLabel}`}>
+        <button className="btn-pill" onClick={onOpenQuality} title={`Audio Quality: ${qualityLabel}`} aria-label={`Audio Quality settings, currently: ${qualityLabel}`}>
           <Disc3 size={15} />
           <span className="btn-label">{qualityLabel}</span>
         </button>

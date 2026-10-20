@@ -57,7 +57,7 @@ export function LyricsDrawer({
                 </button>
               </>
             )}
-            <button className="drawer-close" onClick={onClose} title="Close">
+            <button className="drawer-close" onClick={onClose} title="Close" aria-label="Close lyrics drawer">
               <X size={16} />
             </button>
           </div>

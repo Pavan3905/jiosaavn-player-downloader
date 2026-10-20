@@ -16,6 +16,8 @@ export function FilterBar({ activeScope, onScopeChange }) {
             key={s.id}
             className={`chip ${activeScope === s.id ? 'active' : ''}`}
             onClick={() => onScopeChange(s.id)}
+            aria-label={`Filter by ${s.label}`}
+            aria-pressed={activeScope === s.id}
           >
             {s.label}
           </button>

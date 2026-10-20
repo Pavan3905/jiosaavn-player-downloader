@@ -25,9 +25,21 @@ export function MusicCard({ item, type, onClick }) {
           : ''
 
   return (
-    <div className="music-card" onClick={() => onClick(item.id, type)}>
+    <div
+      className="music-card"
+      role="button"
+      tabIndex={0}
+      aria-label={`${title} (${badge || type})`}
+      onClick={() => onClick(item.id, type)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onClick(item.id, type)
+        }
+      }}
+    >
       <div className="card-cover-wrap">
-        <img className="card-cover" src={img} alt="" loading="lazy" decoding="async" />
+        <img className="card-cover" src={img} alt={`${title} cover`} loading="lazy" decoding="async" />
         {badge && <span className="card-badge">{badge}</span>}
       </div>
       <div className="card-title">{title}</div>

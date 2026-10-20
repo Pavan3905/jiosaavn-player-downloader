@@ -94,7 +94,7 @@ export function Player({
             <img
               className="now-playing-cover"
               src={currentTrack.image || 'https://www.jiosaavn.com/_i/3.0/artist-default-music.png'}
-              alt=""
+              alt={currentTrack.name || 'Now playing song'}
             />
             <div className="now-playing-text">
               <div className="now-playing-title">{currentTrack.name}</div>
@@ -118,26 +118,29 @@ export function Player({
             className={`transport-btn ${shuffle ? 'active' : ''}`}
             onClick={onToggleShuffle}
             title={shuffle ? 'Shuffle enabled' : 'Shuffle disabled'}
+            aria-label={shuffle ? 'Disable shuffle' : 'Enable shuffle'}
           >
             <Shuffle size={16} />
           </button>
-          <button className="transport-btn" onClick={onPlayPrev} title="Previous">
+          <button className="transport-btn" onClick={onPlayPrev} title="Previous" aria-label="Previous track">
             <SkipBack size={18} />
           </button>
           <button
             className="btn-play-master"
             onClick={onTogglePlayPause}
             title={isPlaying ? 'Pause' : 'Play'}
+            aria-label={isPlaying ? 'Pause track' : 'Play track'}
           >
             {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
           </button>
-          <button className="transport-btn" onClick={onPlayNext} title="Next">
+          <button className="transport-btn" onClick={onPlayNext} title="Next" aria-label="Next track">
             <SkipForward size={18} />
           </button>
           <button
             className={`transport-btn ${repeat !== 'none' ? 'active' : ''}`}
             onClick={onToggleRepeat}
             title={repeat === 'one' ? 'Repeat One' : repeat === 'all' ? 'Repeat All' : 'Repeat Off'}
+            aria-label={`Repeat mode: ${repeat}`}
           >
             {repeat === 'one' ? <Repeat1 size={16} /> : <Repeat size={16} />}
           </button>
@@ -148,6 +151,12 @@ export function Player({
           <div
             className="progress-bar-wrap"
             ref={progressBarRef}
+            role="slider"
+            aria-label="Seek track position"
+            aria-valuemin={0}
+            aria-valuemax={Math.round(duration)}
+            aria-valuenow={Math.round(currentTime)}
+            tabIndex={0}
             onPointerDown={handlePointerDown}
             onPointerMove={handlePointerMove}
             onPointerUp={handlePointerUp}
@@ -166,7 +175,7 @@ export function Player({
       </div>
 
       <div className="player-tools">
-        <canvas ref={visualizerRef} className="visualizer-canvas" width={44} height={22} />
+        <canvas ref={visualizerRef} className="visualizer-canvas" width={44} height={22} aria-hidden="true" />
 
         <div className="vol-wrap">
           <button
@@ -174,6 +183,7 @@ export function Player({
             style={{ width: 24, height: 24 }}
             onClick={() => onVolumeChange(volume > 0 ? 0 : 0.8)}
             title={volume === 0 ? 'Unmute' : 'Mute'}
+            aria-label={volume === 0 ? 'Unmute volume' : 'Mute volume'}
           >
             {volume === 0 ? <VolumeX size={15} /> : <Volume2 size={15} />}
           </button>
@@ -186,13 +196,14 @@ export function Player({
             value={volume}
             onChange={(e) => onVolumeChange(parseFloat(e.target.value))}
             title={`Volume: ${Math.round(volume * 100)}%`}
+            aria-label="Volume slider"
           />
         </div>
 
-        <button className="transport-btn" onClick={onToggleLyrics} title="Synchronized Lyrics">
+        <button className="transport-btn" onClick={onToggleLyrics} title="Synchronized Lyrics" aria-label="Toggle Synchronized Lyrics drawer">
           <FileText size={16} />
         </button>
-        <button className="transport-btn" onClick={onToggleQueue} title="Queue">
+        <button className="transport-btn" onClick={onToggleQueue} title="Queue" aria-label="Toggle Playing Queue drawer">
           <ListMusic size={16} />
         </button>
         <button
@@ -200,6 +211,7 @@ export function Player({
           onClick={() => currentTrack && onOpenDownload(currentTrack)}
           disabled={!currentTrack}
           title="Download Current Track"
+          aria-label="Download currently playing track"
         >
           <Download size={16} />
         </button>

@@ -20,7 +20,7 @@ export function EqualizerModal({ isOpen, onClose, eqBandsState, onBandChange, on
       <div className="modal-card" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <div className="modal-title">Parametric Equalizer</div>
-          <button className="drawer-close" onClick={onClose}><X size={16} /></button>
+          <button className="drawer-close" onClick={onClose} aria-label="Close Equalizer dialog"><X size={16} /></button>
         </div>
 
         <div className="eq-presets">
@@ -46,6 +46,7 @@ export function EqualizerModal({ isOpen, onClose, eqBandsState, onBandChange, on
                 value={eqBandsState[f] || 0}
                 onChange={(e) => onBandChange(f, parseFloat(e.target.value))}
                 className="eq-slider"
+                aria-label={`${f >= 1000 ? `${f / 1000}kHz` : `${f}Hz`} band gain`}
               />
               <span className="eq-freq">{f >= 1000 ? `${f / 1000}kHz` : `${f}Hz`}</span>
             </div>
@@ -84,7 +85,7 @@ export function SleepTimerModal({ isOpen, onClose, currentTimer, onSetTimer }) {
       <div className="modal-card" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <div className="modal-title">Sleep Timer</div>
-          <button className="drawer-close" onClick={onClose}><X size={16} /></button>
+          <button className="drawer-close" onClick={onClose} aria-label="Close Sleep Timer dialog"><X size={16} /></button>
         </div>
 
         <div className="radio-group">
@@ -132,7 +133,7 @@ export function QualityModal({ isOpen, onClose, currentQuality, currentStreamMod
       <div className="modal-card" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <div className="modal-title">Audio Quality & Stream Mode</div>
-          <button className="drawer-close" onClick={onClose}><X size={16} /></button>
+          <button className="drawer-close" onClick={onClose} aria-label="Close Audio Quality dialog"><X size={16} /></button>
         </div>
 
         <div style={{ marginBottom: 16 }}>
@@ -209,7 +210,7 @@ export function DownloadModal({ isOpen, track, onClose, onConfirmDownload, isDow
         <div className="modal-head">
           <div className="modal-title">Download “{track.name}”</div>
           {!isDownloading && (
-            <button className="drawer-close" onClick={onClose}><X size={16} /></button>
+            <button className="drawer-close" onClick={onClose} aria-label="Close Download dialog"><X size={16} /></button>
           )}
         </div>
 
@@ -303,7 +304,7 @@ export function ShortcutsModal({ isOpen, onClose }) {
       <div className="modal-card" onClick={(e) => e.stopPropagation()}>
         <div className="modal-head">
           <div className="modal-title">Keyboard Shortcuts</div>
-          <button className="drawer-close" onClick={onClose}><X size={16} /></button>
+          <button className="drawer-close" onClick={onClose} aria-label="Close Keyboard Shortcuts dialog"><X size={16} /></button>
         </div>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '14px 20px', fontSize: 13 }}>

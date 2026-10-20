@@ -30,6 +30,7 @@ export function TrackRow({
           className="play-trigger"
           onClick={() => onPlay(track, index)}
           title={isCurrent && isPlaying ? 'Pause' : 'Play'}
+          aria-label={isCurrent && isPlaying ? `Pause ${track.name}` : `Play ${track.name}`}
         >
           {isCurrent && isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" />}
         </button>
@@ -39,7 +40,7 @@ export function TrackRow({
         <img
           className="track-thumb"
           src={track.image || 'https://www.jiosaavn.com/_i/3.0/artist-default-music.png'}
-          alt=""
+          alt={`${track.name} artwork`}
           loading="lazy"
           decoding="async"
         />
@@ -70,6 +71,7 @@ export function TrackRow({
             onToggleLike(track)
           }}
           title={isLiked ? 'Unlike' : 'Like'}
+          aria-label={isLiked ? `Unlike ${track.name}` : `Like ${track.name}`}
         >
           <Heart size={15} fill={isLiked ? 'currentColor' : 'none'} />
         </button>
@@ -80,6 +82,7 @@ export function TrackRow({
             onAddToQueue(track)
           }}
           title="Add to Queue"
+          aria-label={`Add ${track.name} to playback queue`}
         >
           <Plus size={16} />
         </button>
@@ -90,6 +93,7 @@ export function TrackRow({
             onDownload(track)
           }}
           title="Download High-Fidelity Track"
+          aria-label={`Download ${track.name}`}
         >
           <Download size={15} />
         </button>

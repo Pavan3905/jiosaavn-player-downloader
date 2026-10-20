@@ -62,7 +62,7 @@ export default function App() {
   const [cards, setCards] = useState([])
   const [page, setPage] = useState(0)
   const [hasMore, setHasMore] = useState(false)
-  const [isLoading, setIsLoading] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
   const [stageTitle, setStageTitle] = useState('Discover')
   const [resultsCount, setResultsCount] = useState('')
 
