@@ -894,6 +894,9 @@ export default function App() {
             <p>Try searching for a different song, artist, album, or playlist name.</p>
           </div>
         )}
+
+        {/* Content bottom spacer to ensure elements are never hidden behind fixed player bar */}
+        <div className="content-bottom-spacer" aria-hidden="true" />
       </main>
 
       {/* Fixed Bottom Player */}
