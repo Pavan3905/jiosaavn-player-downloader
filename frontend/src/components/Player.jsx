@@ -86,10 +86,49 @@ export function Player({
     }
   }
 
+  const touchStartRef = useRef({ x: 0, y: 0, time: 0, isSlider: false })
+
+  const handleTouchStart = (e) => {
+    if (!currentTrack) return
+    const touch = e.touches[0]
+    const isSlider = !!e.target.closest('.progress-bar-wrap, .vol-slider')
+    touchStartRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      time: Date.now(),
+      isSlider
+    }
+  }
+
+  const handleTouchEnd = (e) => {
+    if (!currentTrack || touchStartRef.current.isSlider) return
+    const touch = e.changedTouches[0]
+    const deltaX = touch.clientX - touchStartRef.current.x
+    const deltaY = touch.clientY - touchStartRef.current.y
+    const elapsed = Date.now() - touchStartRef.current.time
+
+    // Swipe Up: finger moved up by at least 35px
+    if (deltaY < -35 && Math.abs(deltaY) > Math.abs(deltaX) && elapsed < 800) {
+      onOpenFullScreen?.()
+    }
+  }
+
   const progressPct = duration > 0 ? (currentTime / duration) * 100 : 0
 
   return (
-    <footer className="player-bar">
+    <footer
+      className="player-bar"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
+      <div
+        className="mobile-swipe-indicator"
+        aria-hidden="true"
+        onClick={() => currentTrack && onOpenFullScreen?.()}
+        title="Swipe up for Full Screen"
+      >
+        <span className="swipe-bar" />
+      </div>
       <div
         className="now-playing-meta"
         onClick={() => currentTrack && onOpenFullScreen?.()}

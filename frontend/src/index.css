@@ -1749,3 +1749,354 @@ a {
   }
 }
 
+/* ==========================================================================
+   Collection Hero (Albums, Playlists, Artists Spotify-grade View)
+   ========================================================================== */
+.collection-hero {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  margin-bottom: 28px;
+}
+
+.btn-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 16px;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  width: fit-content;
+  transition: var(--transition);
+}
+
+.btn-back:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+  border-color: var(--border-hover);
+  transform: translateX(-2px);
+}
+
+.collection-main {
+  display: flex;
+  align-items: flex-end;
+  gap: 24px;
+}
+
+.collection-cover-box {
+  width: 190px;
+  height: 190px;
+  border-radius: 14px;
+  overflow: hidden;
+  background: var(--surface-hover);
+  flex-shrink: 0;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.45);
+}
+
+.collection-cover-box.artist-circle {
+  border-radius: 50%;
+}
+
+.collection-art {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.collection-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.collection-type-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+
+.collection-title {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  line-height: 1.2;
+}
+
+.collection-submeta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.collection-artist {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.dot-sep {
+  color: var(--text-muted);
+}
+
+.collection-desc {
+  font-size: 12.5px;
+  color: var(--text-muted);
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.collection-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.btn-collection-play {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 22px;
+  border-radius: var(--radius-full);
+  background: var(--accent);
+  color: #04140b;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 4px 16px var(--accent-glow);
+  transition: var(--transition);
+}
+
+.btn-collection-play:hover {
+  background: var(--accent-hover);
+  transform: scale(1.04);
+}
+
+.btn-collection-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 10px 18px;
+  border-radius: var(--radius-full);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.btn-collection-action:hover {
+  background: var(--surface-hover);
+  color: var(--text);
+  border-color: var(--border-hover);
+}
+
+.btn-collection-action:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Artist avatar circle in card grid */
+.artist-avatar {
+  border-radius: 50% !important;
+}
+
+.artist-avatar .card-cover {
+  border-radius: 50%;
+}
+
+.artist-card .card-title {
+  text-align: center;
+}
+
+.artist-card .card-desc {
+  text-align: center;
+}
+
+/* Mobile Pull / Swipe Indicators */
+.mobile-swipe-indicator {
+  display: none;
+  width: 100%;
+  padding: 4px 0 2px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.mobile-swipe-indicator .swipe-bar {
+  display: inline-block;
+  width: 38px;
+  height: 4px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.25);
+  transition: background 0.2s ease;
+}
+
+[data-theme="light"] .mobile-swipe-indicator .swipe-bar {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.fs-drag-handle-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  padding: 0 0 10px;
+  cursor: pointer;
+}
+
+.fs-drag-handle {
+  width: 44px;
+  height: 5px;
+  border-radius: 9999px;
+  background: rgba(255, 255, 255, 0.35);
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+[data-theme="light"] .fs-drag-handle {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.fs-drag-handle-wrap:hover .fs-drag-handle {
+  background: rgba(255, 255, 255, 0.6);
+  transform: scaleX(1.15);
+}
+
+/* Mobile responsive enhancements */
+@media (max-width: 860px) {
+  .mobile-swipe-indicator {
+    display: block;
+    order: 0;
+    grid-column: span 2;
+  }
+  .now-playing-meta {
+    order: 1;
+  }
+  .player-tools {
+    order: 2;
+  }
+  .transport-wrap {
+    order: 3;
+    grid-column: span 2;
+  }
+  .collection-main {
+    gap: 18px;
+  }
+  .collection-cover-box {
+    width: 150px;
+    height: 150px;
+  }
+  .collection-title {
+    font-size: 26px;
+  }
+}
+
+@media (max-width: 640px) {
+  .mobile-swipe-indicator {
+    display: block;
+    order: 0;
+    grid-column: span 2;
+  }
+  .collection-hero {
+    gap: 14px;
+    margin-bottom: 20px;
+  }
+  .collection-main {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: 16px;
+  }
+  .collection-cover-box {
+    width: 140px;
+    height: 140px;
+    margin: 0 auto;
+    border-radius: 12px;
+  }
+  .collection-meta {
+    align-items: center;
+  }
+  .collection-title {
+    font-size: 22px;
+  }
+  .collection-submeta {
+    justify-content: center;
+    font-size: 12px;
+  }
+  .collection-actions {
+    justify-content: center;
+    width: 100%;
+  }
+  .btn-collection-play, .btn-collection-action {
+    padding: 9px 16px;
+    font-size: 12.5px;
+  }
+  .card-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+  .music-card {
+    padding: 10px;
+    border-radius: var(--radius-sm);
+  }
+  .card-title {
+    font-size: 12.5px;
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.35;
+    min-height: 2.7em;
+  }
+  .card-desc {
+    font-size: 11px;
+    margin-top: 2px;
+  }
+  .track-actions {
+    flex-shrink: 0;
+    gap: 2px;
+  }
+  .row-action-btn {
+    width: 32px;
+    height: 32px;
+  }
+}
+
+@media (max-width: 380px) {
+  .card-grid {
+    gap: 8px;
+  }
+  .music-card {
+    padding: 8px;
+  }
+  .collection-cover-box {
+    width: 120px;
+    height: 120px;
+  }
+  .collection-title {
+    font-size: 19px;
+  }
+}
+
+

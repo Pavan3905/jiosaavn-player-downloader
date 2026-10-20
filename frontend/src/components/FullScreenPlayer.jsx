@@ -93,11 +93,44 @@ export function FullScreenPlayer({
     }
   }
 
+  const touchStartRef = useRef({ x: 0, y: 0, time: 0, isInteractive: false })
+
+  const handleTouchStart = (e) => {
+    const touch = e.touches[0]
+    const isInteractive = !!e.target.closest('.progress-bar-wrap, .vol-slider')
+    touchStartRef.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      time: Date.now(),
+      isInteractive
+    }
+  }
+
+  const handleTouchEnd = (e) => {
+    if (touchStartRef.current.isInteractive) return
+    const touch = e.changedTouches[0]
+    const deltaX = touch.clientX - touchStartRef.current.x
+    const deltaY = touch.clientY - touchStartRef.current.y
+    const elapsed = Date.now() - touchStartRef.current.time
+
+    // Swipe Down: deltaY > 45px and vertically dominant
+    if (deltaY > 45 && Math.abs(deltaY) > Math.abs(deltaX) && elapsed < 800) {
+      onClose()
+    }
+  }
+
   const progressPct = duration > 0 ? (currentTime / duration) * 100 : 0
   const artwork = currentTrack.coverImage || currentTrack.image || 'https://www.jiosaavn.com/_i/3.0/artist-default-music.png'
 
   return (
-    <div className="fs-player-overlay" role="dialog" aria-modal="true" aria-label="Full screen music player">
+    <div
+      className="fs-player-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Full screen music player"
+      onTouchStart={handleTouchStart}
+      onTouchEnd={handleTouchEnd}
+    >
       {/* Blurred Ambient Backdrop */}
       <div
         className="fs-ambient-bg"
@@ -107,6 +140,16 @@ export function FullScreenPlayer({
       <div className="fs-backdrop-scrim" aria-hidden="true" />
 
       <div className="fs-player-content">
+        {/* Mobile Swipe Down Pull Handle */}
+        <div
+          className="fs-drag-handle-wrap"
+          onClick={onClose}
+          title="Swipe or click down to minimize"
+          aria-label="Swipe down to minimize"
+        >
+          <span className="fs-drag-handle" />
+        </div>
+
         {/* Top Header */}
         <header className="fs-top-bar">
           <button

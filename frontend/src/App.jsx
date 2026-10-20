@@ -5,6 +5,7 @@ import { TrackRow } from './components/TrackRow.jsx'
 import { MusicCard } from './components/MusicCard.jsx'
 import { Player } from './components/Player.jsx'
 import { FullScreenPlayer } from './components/FullScreenPlayer.jsx'
+import { CollectionHero } from './components/CollectionHero.jsx'
 import { QueueDrawer } from './components/QueueDrawer.jsx'
 import { QualityModal } from './components/Modals.jsx'
 import { Toast } from './components/Toast.jsx'
@@ -74,6 +75,9 @@ export default function App() {
   const [isQualityOpen, setIsQualityOpen] = useState(false)
   const [isFullScreenOpen, setIsFullScreenOpen] = useState(false)
   const [downloadingTrackId, setDownloadingTrackId] = useState(null)
+  const [activeCollection, setActiveCollection] = useState(null)
+  const [cachedCards, setCachedCards] = useState([])
+  const [isDownloadingCollection, setIsDownloadingCollection] = useState(false)
 
   // Toast State
   const [toast, setToast] = useState({ message: '', isError: false, isVisible: false })
@@ -383,6 +387,7 @@ export default function App() {
       if (searchAbortCtrlRef.current) searchAbortCtrlRef.current.abort()
       searchAbortCtrlRef.current = new AbortController()
       setIsLoading(true)
+      setActiveCollection(null)
       setStageTitle(query === 'top hits' ? 'Featured Releases' : `“${query}”`)
       setResultsCount('Searching...')
     }
@@ -448,10 +453,12 @@ export default function App() {
 
   const handleSearchClear = () => {
     setSearchQuery('')
+    setActiveCollection(null)
     executeSearch('top hits', activeScope, 0, false)
   }
 
   const handleScopeChange = (newScope) => {
+    setActiveCollection(null)
     setActiveScope(newScope)
     executeSearch(searchQuery || 'top hits', newScope, 0, false)
   }
@@ -461,6 +468,9 @@ export default function App() {
     setIsLoading(true)
     setStageTitle('Loading...')
     setResultsCount('Fetching...')
+    if (cards.length > 0) {
+      setCachedCards(cards)
+    }
     try {
       const endpoint = apiUrl(`/api/${type}?id=${encodeURIComponent(id)}`)
       const res = await fetch(endpoint)
@@ -470,17 +480,88 @@ export default function App() {
       const rawList = type === 'artists' ? data.topSongs || [] : data.songs || []
       const normalized = rawList.map(normalizeTrack).filter(Boolean)
 
-      setStageTitle(decodeHtmlEntities(data.name || 'Collection'))
+      const imgUrl =
+        (data.image && data.image[data.image.length - 1] && data.image[data.image.length - 1].url) ||
+        (typeof data.image === 'string' ? data.image : '') ||
+        ''
+      const artistNames =
+        (data.artists && data.artists.primary && data.artists.primary.map((a) => a.name).join(', ')) ||
+        data.artist ||
+        ''
+
+      const colObj = {
+        id: data.id || id,
+        type,
+        name: decodeHtmlEntities(data.name || 'Collection'),
+        image: imgUrl,
+        year: data.year || '',
+        artist: artistNames,
+        songCount: normalized.length,
+        description: decodeHtmlEntities(data.description || '')
+      }
+
+      setActiveCollection(colObj)
+      setStageTitle(colObj.name)
       setResultsCount(`${normalized.length} tracks`)
       setTracks(normalized)
       setQueue(normalized)
-      setCards([])
       setHasMore(false)
     } catch (err) {
       showToast(err.message || 'Could not load entity details', true)
     } finally {
       setIsLoading(false)
     }
+  }
+
+  const handleBackFromCollection = () => {
+    setActiveCollection(null)
+    if (cachedCards.length > 0) {
+      setCards(cachedCards)
+      setTracks([])
+      setStageTitle(searchQuery ? `“${searchQuery}”` : 'Featured Releases')
+      setResultsCount(`${cachedCards.length} ${activeScope}`)
+    } else {
+      executeSearch(searchQuery || 'top hits', activeScope, 0, false)
+    }
+  }
+
+  const handlePlayCollection = () => {
+    if (tracks.length > 0) {
+      setQueue(tracks)
+      playTrackAtIndex(0, tracks)
+      showToast(`Playing “${activeCollection?.name || 'Collection'}”`)
+    }
+  }
+
+  const handleShuffleCollection = () => {
+    if (tracks.length > 0) {
+      setShuffle(true)
+      setQueue(tracks)
+      const randomIdx = Math.floor(Math.random() * tracks.length)
+      playTrackAtIndex(randomIdx, tracks)
+      showToast(`Shuffling “${activeCollection?.name || 'Collection'}”`)
+    }
+  }
+
+  const handleDownloadCollection = async () => {
+    if (!tracks.length || isDownloadingCollection) return
+    setIsDownloadingCollection(true)
+    showToast(`Downloading ${tracks.length} tracks from “${activeCollection?.name || 'Album'}”...`)
+    let successCount = 0
+    for (let i = 0; i < tracks.length; i++) {
+      const track = tracks[i]
+      setDownloadingTrackId(track.id)
+      try {
+        await downloadTrackWithMetadata(track, 'none')
+        successCount++
+        showToast(`Downloaded (${i + 1}/${tracks.length}): “${track.name}”`)
+      } catch (err) {
+        showToast(`Skipped “${track.name}”: ${err.message}`, true)
+      }
+    }
+    setDownloadingTrackId(null)
+    setIsDownloadingCollection(false)
+    showToast(`✓ Completed download: ${successCount}/${tracks.length} tracks`)
   }
 
   // Initial load
@@ -589,13 +670,25 @@ export default function App() {
 
         <FilterBar activeScope={activeScope} onScopeChange={handleScopeChange} />
 
-        <div className="section-meta">
-          <h2 className="section-title">{stageTitle}</h2>
-          <span className="section-badge">{resultsCount}</span>
-        </div>
+        {/* Collection Hero if viewing an album, playlist, or artist */}
+        {activeCollection ? (
+          <CollectionHero
+            collection={activeCollection}
+            onBack={handleBackFromCollection}
+            onPlayAll={handlePlayCollection}
+            onShuffleAll={handleShuffleCollection}
+            onDownloadAll={handleDownloadCollection}
+            isDownloadingAll={isDownloadingCollection}
+          />
+        ) : (
+          <div className="section-meta">
+            <h2 className="section-title">{stageTitle}</h2>
+            <span className="section-badge">{resultsCount}</span>
+          </div>
+        )}
 
-        {/* Tracks Table */}
-        {tracks.length > 0 && activeScope === 'songs' && (
+        {/* Tracks Table (Rendered for songs search OR when viewing an active collection) */}
+        {tracks.length > 0 && (activeScope === 'songs' || activeCollection) && (
           <div className="track-table">
             <div className="table-header">
               <span>#</span>
@@ -623,8 +716,8 @@ export default function App() {
           </div>
         )}
 
-        {/* Card Grid (Albums, Playlists, Artists) */}
-        {cards.length > 0 && activeScope !== 'songs' && (
+        {/* Card Grid (Albums, Playlists, Artists) when not viewing an active collection */}
+        {cards.length > 0 && activeScope !== 'songs' && !activeCollection && (
           <div className="card-grid">
             {cards.map((item) => (
               <MusicCard
@@ -638,7 +731,7 @@ export default function App() {
         )}
 
         {/* Infinite Scroll trigger for tracks */}
-        {hasMore && activeScope === 'songs' && (
+        {hasMore && activeScope === 'songs' && !activeCollection && (
           <div className="lazy-spinner-wrap">
             <button
               className="btn-pill"
@@ -683,7 +776,7 @@ export default function App() {
         )}
 
         {/* Empty state */}
-        {!isLoading && tracks.length === 0 && cards.length === 0 && (
+        {!isLoading && tracks.length === 0 && cards.length === 0 && !activeCollection && (
           <div className="empty-box">
             <h3>No results found</h3>
             <p>Try searching for a different song, artist, album, or playlist name.</p>
