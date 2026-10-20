@@ -802,13 +802,6 @@ export default function App() {
         {/* Tracks Table (Rendered for songs search OR when viewing an active collection) */}
         {tracks.length > 0 && (activeCollection || searchQuery.trim()) && (
           <div className="track-table">
-            <div className="table-header">
-              <span>#</span>
-              <span>Title</span>
-              <span>Album</span>
-              <span style={{ textAlign: 'right' }}>Time</span>
-              <span style={{ textAlign: 'right' }}>Actions</span>
-            </div>
             {tracks.map((track, idx) => (
               <TrackRow
                 key={`${track.id}-${idx}`}

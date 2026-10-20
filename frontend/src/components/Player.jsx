@@ -138,6 +138,8 @@ export function Player({
       >
         <span className="swipe-bar" />
       </div>
+
+      {/* Row 1: Top-Left artwork (slightly big) + Song title & artist + Visualizer on mobile */}
       <div
         className="now-playing-meta"
         onClick={() => currentTrack && onOpenFullScreen?.()}
@@ -164,42 +166,18 @@ export function Player({
             <div className="now-playing-artist">Select a song to start listening</div>
           </div>
         )}
+
+        <div className={`animated-wave-eq mobile-wave-eq ${isPlaying ? 'playing' : ''}`} aria-hidden="true" title="Audio visualizer">
+          <span className="eq-bar bar-1" />
+          <span className="eq-bar bar-2" />
+          <span className="eq-bar bar-3" />
+          <span className="eq-bar bar-4" />
+        </div>
       </div>
 
+      {/* Center Column on Desktop / Rows 2 & 3 on Mobile: Progress Bar in Middle & All Buttons in One Line */}
       <div className="transport-wrap">
-        <div className="transport-controls">
-          <button
-            className={`transport-btn ${shuffle ? 'active' : ''}`}
-            onClick={onToggleShuffle}
-            title={shuffle ? 'Shuffle enabled' : 'Shuffle disabled'}
-            aria-label={shuffle ? 'Disable shuffle' : 'Enable shuffle'}
-          >
-            <Shuffle size={16} />
-          </button>
-          <button className="transport-btn" onClick={onPlayPrev} title="Previous" aria-label="Previous track">
-            <SkipBack size={18} />
-          </button>
-          <button
-            className="btn-play-master"
-            onClick={onTogglePlayPause}
-            title={isPlaying ? 'Pause' : 'Play'}
-            aria-label={isPlaying ? 'Pause track' : 'Play track'}
-          >
-            {isPlaying ? <Pause size={18} fill="currentColor" /> : <Play size={18} fill="currentColor" />}
-          </button>
-          <button className="transport-btn" onClick={onPlayNext} title="Next" aria-label="Next track">
-            <SkipForward size={18} />
-          </button>
-          <button
-            className={`transport-btn ${repeat !== 'none' ? 'active' : ''}`}
-            onClick={onToggleRepeat}
-            title={repeat === 'one' ? 'Repeat One' : repeat === 'all' ? 'Repeat All' : 'Repeat Off'}
-            aria-label={`Repeat mode: ${repeat}`}
-          >
-            {repeat === 'one' ? <Repeat1 size={16} /> : <Repeat size={16} />}
-          </button>
-        </div>
-
+        {/* Progress Bar in the Middle */}
         <div className="scrub-container">
           <span className="time-code">{formatDuration(currentTime)}</span>
           <div
@@ -226,10 +204,71 @@ export function Player({
           </div>
           <span className="time-code">{formatDuration(duration)}</span>
         </div>
+
+        {/* All buttons in ONE LINE at bottom */}
+        <div className="transport-controls">
+          <button
+            className={`transport-btn ${shuffle ? 'active' : ''}`}
+            onClick={onToggleShuffle}
+            title={shuffle ? 'Shuffle enabled' : 'Shuffle disabled'}
+            aria-label={shuffle ? 'Disable shuffle' : 'Enable shuffle'}
+          >
+            <Shuffle size={17} />
+          </button>
+          <button className="transport-btn" onClick={onPlayPrev} title="Previous" aria-label="Previous track">
+            <SkipBack size={19} />
+          </button>
+          <button
+            className="btn-play-master"
+            onClick={onTogglePlayPause}
+            title={isPlaying ? 'Pause' : 'Play'}
+            aria-label={isPlaying ? 'Pause track' : 'Play track'}
+          >
+            {isPlaying ? <Pause size={20} fill="currentColor" /> : <Play size={20} fill="currentColor" />}
+          </button>
+          <button className="transport-btn" onClick={onPlayNext} title="Next" aria-label="Next track">
+            <SkipForward size={19} />
+          </button>
+          <button
+            className={`transport-btn ${repeat !== 'none' ? 'active' : ''}`}
+            onClick={onToggleRepeat}
+            title={repeat === 'one' ? 'Repeat One' : repeat === 'all' ? 'Repeat All' : 'Repeat Off'}
+            aria-label={`Repeat mode: ${repeat}`}
+          >
+            {repeat === 'one' ? <Repeat1 size={17} /> : <Repeat size={17} />}
+          </button>
+
+          {/* Unified mobile download button in the bottom line */}
+          <button
+            className="transport-btn mobile-action-btn btn-action-dl"
+            onClick={() => currentTrack && onDownload(currentTrack)}
+            disabled={!currentTrack || isDownloading}
+            title="Download Song"
+            aria-label="Download song"
+          >
+            {isDownloading ? <Loader2 size={17} className="spin-loader" /> : <Download size={17} />}
+          </button>
+
+          {/* Unified mobile 3-dots button in the bottom line */}
+          <button
+            className={`transport-btn mobile-action-btn btn-more-menu ${isMenuOpen ? 'active' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation()
+              setIsMenuOpen((prev) => !prev)
+            }}
+            disabled={!currentTrack}
+            title="More Options"
+            aria-label="More song options"
+            aria-expanded={isMenuOpen}
+          >
+            <MoreVertical size={18} />
+          </button>
+        </div>
       </div>
 
+      {/* Desktop Tools Column (Hidden on mobile where controls are unified in transport-controls) */}
       <div className="player-tools">
-        <div className={`animated-wave-eq ${isPlaying ? 'playing' : ''}`} aria-hidden="true" title="Audio visualizer">
+        <div className={`animated-wave-eq desktop-wave-eq ${isPlaying ? 'playing' : ''}`} aria-hidden="true" title="Audio visualizer">
           <span className="eq-bar bar-1" />
           <span className="eq-bar bar-2" />
           <span className="eq-bar bar-3" />
@@ -260,7 +299,7 @@ export function Player({
         </div>
 
         <button
-          className="transport-btn btn-action-dl"
+          className="transport-btn btn-action-dl desktop-action-btn"
           onClick={() => currentTrack && onDownload(currentTrack)}
           disabled={!currentTrack || isDownloading}
           title="Download Song"
@@ -279,8 +318,8 @@ export function Player({
           <Maximize2 size={16} />
         </button>
 
-        {/* 3-Dots Context Menu (Pop-up on Desktop / Bottom Sheet on Mobile) */}
-        <div className="player-menu-anchor">
+        {/* 3-Dots Context Menu (Pop-up on Desktop) */}
+        <div className="player-menu-anchor desktop-menu-anchor">
           <button
             className={`transport-btn btn-more-menu ${isMenuOpen ? 'active' : ''}`}
             onClick={(e) => {
@@ -294,91 +333,92 @@ export function Player({
           >
             <MoreVertical size={17} />
           </button>
-
-          {isMenuOpen && currentTrack && (
-            <>
-              <div
-                className="player-menu-backdrop"
-                onClick={(e) => {
-                  e.stopPropagation()
-                  setIsMenuOpen(false)
-                }}
-                aria-hidden="true"
-              />
-              <div
-                className="player-menu-dropdown"
-                role="menu"
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div className="player-menu-sheet-handle" aria-hidden="true" />
-                <div className="player-menu-header">
-                  <img
-                    src={currentTrack.image || 'https://www.jiosaavn.com/_i/3.0/artist-default-music.png'}
-                    alt=""
-                    className="player-menu-thumb"
-                  />
-                  <div className="player-menu-meta">
-                    <span className="player-menu-title">{currentTrack.name}</span>
-                    <span className="player-menu-subtitle">{currentTrack.artist}</span>
-                  </div>
-                </div>
-
-                <div className="player-menu-divider" />
-
-                <button
-                  className="player-menu-item"
-                  role="menuitem"
-                  onClick={() => {
-                    setIsMenuOpen(false)
-                    onGoToAlbum?.(currentTrack.album)
-                  }}
-                >
-                  <Disc3 size={17} className="player-menu-item-icon" />
-                  <div className="player-menu-item-text">
-                    <span className="player-menu-label">Go to Album</span>
-                    <span className="player-menu-sub">{currentTrack.album?.name || 'View Album'}</span>
-                  </div>
-                </button>
-
-                <button
-                  className="player-menu-item"
-                  role="menuitem"
-                  onClick={() => {
-                    setIsMenuOpen(false)
-                    onDownload(currentTrack)
-                  }}
-                  disabled={isDownloading}
-                >
-                  {isDownloading ? (
-                    <Loader2 size={17} className="spin-loader player-menu-item-icon" />
-                  ) : (
-                    <Download size={17} className="player-menu-item-icon" />
-                  )}
-                  <div className="player-menu-item-text">
-                    <span className="player-menu-label">Download Song</span>
-                    <span className="player-menu-sub">Save MP3 with metadata</span>
-                  </div>
-                </button>
-
-                <button
-                  className="player-menu-item"
-                  role="menuitem"
-                  onClick={() => {
-                    setIsMenuOpen(false)
-                    onOpenFullScreen?.()
-                  }}
-                >
-                  <Maximize2 size={17} className="player-menu-item-icon" />
-                  <div className="player-menu-item-text">
-                    <span className="player-menu-label">Full Screen Player</span>
-                    <span className="player-menu-sub">Open immersive player</span>
-                  </div>
-                </button>
-              </div>
-            </>
-          )}
         </div>
       </div>
+
+      {/* Shared Dropdown Popover on Desktop / Bottom Sheet on Mobile */}
+      {isMenuOpen && currentTrack && (
+        <>
+          <div
+            className="player-menu-backdrop"
+            onClick={(e) => {
+              e.stopPropagation()
+              setIsMenuOpen(false)
+            }}
+            aria-hidden="true"
+          />
+          <div
+            className="player-menu-dropdown"
+            role="menu"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="player-menu-sheet-handle" aria-hidden="true" />
+            <div className="player-menu-header">
+              <img
+                src={currentTrack.image || 'https://www.jiosaavn.com/_i/3.0/artist-default-music.png'}
+                alt=""
+                className="player-menu-thumb"
+              />
+              <div className="player-menu-meta">
+                <span className="player-menu-title">{currentTrack.name}</span>
+                <span className="player-menu-subtitle">{currentTrack.artist}</span>
+              </div>
+            </div>
+
+            <div className="player-menu-divider" />
+
+            <button
+              className="player-menu-item"
+              role="menuitem"
+              onClick={() => {
+                setIsMenuOpen(false)
+                onGoToAlbum?.(currentTrack.album)
+              }}
+            >
+              <Disc3 size={17} className="player-menu-item-icon" />
+              <div className="player-menu-item-text">
+                <span className="player-menu-label">Go to Album</span>
+                <span className="player-menu-sub">{currentTrack.album?.name || 'View Album'}</span>
+              </div>
+            </button>
+
+            <button
+              className="player-menu-item"
+              role="menuitem"
+              onClick={() => {
+                setIsMenuOpen(false)
+                onDownload(currentTrack)
+              }}
+              disabled={isDownloading}
+            >
+              {isDownloading ? (
+                <Loader2 size={17} className="spin-loader player-menu-item-icon" />
+              ) : (
+                <Download size={17} className="player-menu-item-icon" />
+              )}
+              <div className="player-menu-item-text">
+                <span className="player-menu-label">Download Song</span>
+                <span className="player-menu-sub">Save MP3 with metadata</span>
+              </div>
+            </button>
+
+            <button
+              className="player-menu-item"
+              role="menuitem"
+              onClick={() => {
+                setIsMenuOpen(false)
+                onOpenFullScreen?.()
+              }}
+            >
+              <Maximize2 size={17} className="player-menu-item-icon" />
+              <div className="player-menu-item-text">
+                <span className="player-menu-label">Full Screen Player</span>
+                <span className="player-menu-sub">Open immersive player</span>
+              </div>
+            </button>
+          </div>
+        </>
+      )}
     </footer>
   )
 }

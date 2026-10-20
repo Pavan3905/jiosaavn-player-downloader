@@ -402,16 +402,7 @@ a {
 }
 
 .table-header {
-  display: grid;
-  grid-template-columns: 44px minmax(200px, 2fr) minmax(130px, 1.3fr) 80px 130px;
-  gap: 16px;
-  padding: 10px 16px;
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
-  border-bottom: 1px solid var(--border);
+  display: none !important;
 }
 
 .track-row {
@@ -841,6 +832,11 @@ a {
 
 .transport-btn.active {
   color: var(--accent);
+}
+
+.mobile-action-btn,
+.mobile-wave-eq {
+  display: none !important;
 }
 
 .btn-play-master {
@@ -1566,22 +1562,137 @@ a {
   }
 
   .player-bar {
-    grid-template-columns: 1fr auto;
-    padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+    display: flex;
+    flex-direction: column;
+    padding: 6px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+    gap: 8px;
+    min-height: auto;
+  }
+
+  .mobile-swipe-indicator {
+    display: flex;
+    justify-content: center;
+    width: 100%;
+    margin: 0 auto 2px;
+    cursor: pointer;
+  }
+
+  .now-playing-meta {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+
+  /* Top left art slightly big */
+  .now-playing-cover {
+    width: 58px;
+    height: 58px;
+    border-radius: 10px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+    flex-shrink: 0;
+  }
+
+  .now-playing-text {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .now-playing-title {
+    font-size: 14px;
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .now-playing-artist {
+    font-size: 12px;
+    color: var(--text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 2px;
+  }
+
+  /* Audio visualizer wave next to track info on mobile */
+  .mobile-wave-eq {
+    display: flex !important;
+    align-items: flex-end;
+    gap: 3px;
+    height: 18px;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+
+  /* Middle Progress Bar & Bottom Buttons Container */
+  .transport-wrap {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-width: 100%;
+    margin: 0;
+  }
+
+  /* Progress bar in the middle */
+  .scrub-container {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    padding: 2px 0;
     gap: 10px;
   }
 
-  .transport-wrap {
-    order: 3;
-    grid-column: span 2;
+  .time-code {
+    font-size: 11px;
+    min-width: 30px;
   }
 
+  /* All buttons in ONE LINE at bottom */
+  .transport-controls {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    max-width: 440px;
+    margin: 0 auto;
+    padding: 0 2px 2px;
+    gap: 4px;
+  }
+
+  .transport-controls .transport-btn {
+    width: 36px;
+    height: 36px;
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    color: var(--text-secondary);
+  }
+
+  .transport-controls .btn-play-master {
+    width: 46px;
+    height: 46px;
+    flex-shrink: 0;
+  }
+
+  .mobile-action-btn {
+    display: grid !important;
+    place-items: center;
+  }
+
+  /* Hide redundant desktop tools on mobile */
   .player-tools {
-    order: 2;
+    display: none !important;
   }
 
-  .visualizer-canvas {
-    display: none;
+  .toast-msg {
+    bottom: calc(150px + env(safe-area-inset-bottom, 0px));
+    left: 16px;
+    right: 16px;
+    justify-content: center;
+    text-align: center;
   }
 
   .track-row {
@@ -1751,21 +1862,29 @@ a {
     padding: 12px 12px calc(150px + env(safe-area-inset-bottom, 0px) + 50px);
   }
 
+  /* Top left art slightly big on mobile */
   .now-playing-cover {
-    width: 44px;
-    height: 44px;
+    width: 56px;
+    height: 56px;
+    border-radius: 9px;
   }
 
   .now-playing-title {
-    font-size: 13px;
+    font-size: 13.5px;
   }
 
   .transport-controls {
-    gap: 12px;
+    gap: 2px;
   }
 
-  .vol-wrap {
-    display: none;
+  .transport-controls .transport-btn {
+    width: 34px;
+    height: 34px;
+  }
+
+  .transport-controls .btn-play-master {
+    width: 44px;
+    height: 44px;
   }
 }
 
@@ -2556,24 +2675,6 @@ a {
 
 /* Mobile responsive enhancements */
 @media (max-width: 860px) {
-  .mobile-swipe-indicator {
-    display: block;
-    order: 0;
-    grid-column: span 2;
-  }
-
-  .now-playing-meta {
-    order: 1;
-  }
-
-  .player-tools {
-    order: 2;
-  }
-
-  .transport-wrap {
-    order: 3;
-    grid-column: span 2;
-  }
 
   .collection-main {
     gap: 18px;
