@@ -52,6 +52,7 @@ export default function App() {
   // Search & Content State
   const [searchQuery, setSearchQuery] = useState('')
   const [activeScope, setActiveScope] = useState('songs')
+  const [activeLanguage, setActiveLanguage] = useState('All')
   const [tracks, setTracks] = useState([])
   const [cards, setCards] = useState([])
   const [page, setPage] = useState(0)
@@ -399,16 +400,57 @@ export default function App() {
     }
   }
 
+  const getSearchDefaultQuery = (scope = activeScope, lang = activeLanguage) => {
+    if (scope === 'songs') {
+      return lang === 'All' ? 'trending indian hits' : `trending ${lang.toLowerCase()} hits`
+    }
+    return 'top hits'
+  }
+
+  const getDefaultStageTitle = (scope = activeScope, lang = activeLanguage) => {
+    if (scope === 'songs') {
+      return lang === 'All' ? 'Trending Indian Hits' : `Trending ${lang} Hits`
+    }
+    return 'Featured Releases'
+  }
+
+  const handleLanguageChange = (lang) => {
+    setActiveLanguage(lang)
+    setSearchQuery('')
+    setActiveCollection(null)
+    const q = lang === 'All' ? 'trending indian hits' : `trending ${lang.toLowerCase()} hits`
+    executeSearch(q, 'songs', 0, false, lang)
+  }
+
+  const handleGoToAlbum = (album) => {
+    if (!album) return
+    if (album.id) {
+      handleCardClick(album.id, 'albums')
+    } else if (album.name && album.name !== 'Single') {
+      setActiveCollection(null)
+      setActiveScope('albums')
+      executeSearch(album.name, 'albums', 0, false)
+    }
+  }
+
   // Search Execution
-  const executeSearch = async (query, scope = activeScope, pageNum = 0, append = false) => {
-    if (!query.trim()) query = 'top hits'
+  const executeSearch = async (query, scope = activeScope, pageNum = 0, append = false, forcedLang = null) => {
+    const lang = forcedLang || activeLanguage
+    const isDefaultQuery =
+      !query ||
+      !query.trim() ||
+      query === 'trending indian hits' ||
+      query === 'top hits' ||
+      query.startsWith('trending ')
+
+    const effectiveQuery = isDefaultQuery ? getSearchDefaultQuery(scope, lang) : query.trim()
 
     if (!append) {
       if (searchAbortCtrlRef.current) searchAbortCtrlRef.current.abort()
       searchAbortCtrlRef.current = new AbortController()
       setIsLoading(true)
       setActiveCollection(null)
-      setStageTitle(query === 'top hits' ? 'Featured Releases' : `“${query}”`)
+      setStageTitle(isDefaultQuery ? getDefaultStageTitle(scope, lang) : `“${effectiveQuery}”`)
       setResultsCount('Searching...')
     } else {
       setIsLoadingMore(true)
@@ -420,7 +462,7 @@ export default function App() {
     try {
       if (scope === 'songs') {
         const res = await fetch(
-          apiUrl(`/api/search/songs?query=${encodeURIComponent(query)}&page=${pageNum}&limit=20`),
+          apiUrl(`/api/search/songs?query=${encodeURIComponent(effectiveQuery)}&page=${pageNum}&limit=20`),
           { signal }
         )
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -452,7 +494,7 @@ export default function App() {
         }
       } else {
         const res = await fetch(
-          apiUrl(`/api/search/${scope}?query=${encodeURIComponent(query)}&page=${pageNum}&limit=24`),
+          apiUrl(`/api/search/${scope}?query=${encodeURIComponent(effectiveQuery)}&page=${pageNum}&limit=24`),
           { signal }
         )
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -497,8 +539,9 @@ export default function App() {
     }
     isLoadingMoreRef.current = true
     setIsLoadingMore(true)
-    executeSearch(searchQuery || 'top hits', activeScope, page + 1, true)
-  }, [isLoading, hasMore, activeCollection, searchQuery, activeScope, page])
+    const effectiveQ = searchQuery || getSearchDefaultQuery(activeScope, activeLanguage)
+    executeSearch(effectiveQ, activeScope, page + 1, true)
+  }, [isLoading, hasMore, activeCollection, searchQuery, activeScope, activeLanguage, page])
 
   useEffect(() => {
     const sentinel = sentinelRef.current
@@ -547,13 +590,14 @@ export default function App() {
   const handleSearchClear = () => {
     setSearchQuery('')
     setActiveCollection(null)
-    executeSearch('top hits', activeScope, 0, false)
+    executeSearch(getSearchDefaultQuery(activeScope, activeLanguage), activeScope, 0, false)
   }
 
   const handleScopeChange = (newScope) => {
     setActiveCollection(null)
     setActiveScope(newScope)
-    executeSearch(searchQuery || 'top hits', newScope, 0, false)
+    const q = searchQuery || getSearchDefaultQuery(newScope, activeLanguage)
+    executeSearch(q, newScope, 0, false)
   }
 
   // Load Album / Playlist / Artist details
@@ -611,10 +655,10 @@ export default function App() {
     if (cachedCards.length > 0) {
       setCards(cachedCards)
       setTracks([])
-      setStageTitle(searchQuery ? `“${searchQuery}”` : 'Featured Releases')
+      setStageTitle(searchQuery ? `“${searchQuery}”` : getDefaultStageTitle(activeScope, activeLanguage))
       setResultsCount(`${cachedCards.length} ${activeScope}`)
     } else {
-      executeSearch(searchQuery || 'top hits', activeScope, 0, false)
+      executeSearch(searchQuery || getSearchDefaultQuery(activeScope, activeLanguage), activeScope, 0, false)
     }
   }
 
@@ -657,9 +701,9 @@ export default function App() {
     showToast(`✓ Completed download: ${successCount}/${tracks.length} tracks`)
   }
 
-  // Initial load
+  // Initial load: Indian Trending Songs
   useEffect(() => {
-    executeSearch('top hits', 'songs', 0, false)
+    executeSearch('trending indian hits', 'songs', 0, false)
   }, [])
 
 
@@ -738,7 +782,12 @@ export default function App() {
           onInstallApp={handleInstallApp}
         />
 
-        <FilterBar activeScope={activeScope} onScopeChange={handleScopeChange} />
+        <FilterBar
+          activeScope={activeScope}
+          onScopeChange={handleScopeChange}
+          activeLanguage={activeLanguage}
+          onLanguageChange={handleLanguageChange}
+        />
 
         {/* Collection Hero if viewing an album, playlist, or artist */}
         {activeCollection ? (
@@ -753,7 +802,6 @@ export default function App() {
         ) : (
           <div className="section-meta">
             <h2 className="section-title">{stageTitle}</h2>
-            <span className="section-badge">{resultsCount}</span>
           </div>
         )}
 
@@ -873,6 +921,7 @@ export default function App() {
         onVolumeChange={handleVolumeChange}
         onDownload={(t) => handleDirectDownload(t)}
         onOpenFullScreen={() => setIsFullScreenOpen(true)}
+        onGoToAlbum={handleGoToAlbum}
         isDownloading={downloadingTrackId === currentTrack?.id}
       />
 
@@ -902,6 +951,7 @@ export default function App() {
         onSeek={handleSeek}
         onVolumeChange={handleVolumeChange}
         onDownload={(t) => handleDirectDownload(t)}
+        onGoToAlbum={handleGoToAlbum}
         isDownloading={downloadingTrackId === currentTrack?.id}
       />
 

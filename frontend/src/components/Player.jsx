@@ -11,7 +11,9 @@ import {
   VolumeX,
   Download,
   Maximize2,
-  Loader2
+  Loader2,
+  MoreVertical,
+  Disc3
 } from 'lucide-react'
 import { formatDuration } from '../utils/helpers.js'
 
@@ -32,12 +34,23 @@ export function Player({
   onVolumeChange,
   onDownload,
   onOpenFullScreen,
+  onGoToAlbum,
   isDownloading
 }) {
   const progressBarRef = useRef(null)
   const [hoverTime, setHoverTime] = React.useState(null)
   const [hoverPos, setHoverPos] = React.useState(0)
+  const [isMenuOpen, setIsMenuOpen] = React.useState(false)
   const isDraggingRef = useRef(false)
+
+  React.useEffect(() => {
+    if (!isMenuOpen) return
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') setIsMenuOpen(false)
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [isMenuOpen])
 
   const calcPctFromEvent = (e) => {
     if (!duration || !progressBarRef.current) return 0
@@ -257,7 +270,7 @@ export function Player({
         </button>
 
         <button
-          className="transport-btn"
+          className="transport-btn btn-maximize-player"
           onClick={onOpenFullScreen}
           disabled={!currentTrack}
           title="Full Screen Music Player"
@@ -265,6 +278,106 @@ export function Player({
         >
           <Maximize2 size={16} />
         </button>
+
+        {/* 3-Dots Context Menu (Pop-up on Desktop / Bottom Sheet on Mobile) */}
+        <div className="player-menu-anchor">
+          <button
+            className={`transport-btn btn-more-menu ${isMenuOpen ? 'active' : ''}`}
+            onClick={(e) => {
+              e.stopPropagation()
+              setIsMenuOpen((prev) => !prev)
+            }}
+            disabled={!currentTrack}
+            title="More Options"
+            aria-label="More song options"
+            aria-expanded={isMenuOpen}
+          >
+            <MoreVertical size={17} />
+          </button>
+
+          {isMenuOpen && currentTrack && (
+            <>
+              <div
+                className="player-menu-backdrop"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setIsMenuOpen(false)
+                }}
+                aria-hidden="true"
+              />
+              <div
+                className="player-menu-dropdown"
+                role="menu"
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div className="player-menu-sheet-handle" aria-hidden="true" />
+                <div className="player-menu-header">
+                  <img
+                    src={currentTrack.image || 'https://www.jiosaavn.com/_i/3.0/artist-default-music.png'}
+                    alt=""
+                    className="player-menu-thumb"
+                  />
+                  <div className="player-menu-meta">
+                    <span className="player-menu-title">{currentTrack.name}</span>
+                    <span className="player-menu-subtitle">{currentTrack.artist}</span>
+                  </div>
+                </div>
+
+                <div className="player-menu-divider" />
+
+                <button
+                  className="player-menu-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setIsMenuOpen(false)
+                    onGoToAlbum?.(currentTrack.album)
+                  }}
+                >
+                  <Disc3 size={17} className="player-menu-item-icon" />
+                  <div className="player-menu-item-text">
+                    <span className="player-menu-label">Go to Album</span>
+                    <span className="player-menu-sub">{currentTrack.album?.name || 'View Album'}</span>
+                  </div>
+                </button>
+
+                <button
+                  className="player-menu-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setIsMenuOpen(false)
+                    onDownload(currentTrack)
+                  }}
+                  disabled={isDownloading}
+                >
+                  {isDownloading ? (
+                    <Loader2 size={17} className="spin-loader player-menu-item-icon" />
+                  ) : (
+                    <Download size={17} className="player-menu-item-icon" />
+                  )}
+                  <div className="player-menu-item-text">
+                    <span className="player-menu-label">Download Song</span>
+                    <span className="player-menu-sub">Save MP3 with metadata</span>
+                  </div>
+                </button>
+
+                <button
+                  className="player-menu-item"
+                  role="menuitem"
+                  onClick={() => {
+                    setIsMenuOpen(false)
+                    onOpenFullScreen?.()
+                  }}
+                >
+                  <Maximize2 size={17} className="player-menu-item-icon" />
+                  <div className="player-menu-item-text">
+                    <span className="player-menu-label">Full Screen Player</span>
+                    <span className="player-menu-sub">Open immersive player</span>
+                  </div>
+                </button>
+              </div>
+            </>
+          )}
+        </div>
       </div>
     </footer>
   )

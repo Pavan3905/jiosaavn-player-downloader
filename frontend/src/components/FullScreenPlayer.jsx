@@ -11,7 +11,8 @@ import {
   Volume2,
   VolumeX,
   Download,
-  Loader2
+  Loader2,
+  Disc3
 } from 'lucide-react'
 import { formatDuration } from '../utils/helpers.js'
 
@@ -33,6 +34,7 @@ export function FullScreenPlayer({
   onSeek,
   onVolumeChange,
   onDownload,
+  onGoToAlbum,
   isDownloading
 }) {
   const progressBarRef = useRef(null)
@@ -158,10 +160,18 @@ export function FullScreenPlayer({
             <ChevronDown size={28} />
           </button>
 
-          <div className="fs-header-meta">
-            <span className="fs-header-sub">NOW PLAYING</span>
-            <span className="fs-header-title">{currentTrack.album?.name || 'Single'}</span>
-          </div>
+          <button
+            className="fs-album-pill"
+            onClick={() => {
+              onClose()
+              onGoToAlbum?.(currentTrack.album)
+            }}
+            title={currentTrack.album?.name ? `Go to album: ${currentTrack.album.name}` : 'Album'}
+            aria-label={`Go to album: ${currentTrack.album?.name || 'Single'}`}
+          >
+            <Disc3 size={15} className="fs-album-pill-icon" />
+            <span className="fs-album-pill-name">{currentTrack.album?.name || 'Single'}</span>
+          </button>
 
           <div style={{ width: 44, height: 44 }} aria-hidden="true" />
         </header>
