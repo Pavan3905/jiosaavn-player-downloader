@@ -12,7 +12,7 @@
     "start": "node backend/src/server.js"
   },
   "engines": {
-    "node": "20.x"
+    "node": "24.x"
   },
   "dependencies": {
     "@hono/node-server": "^1.14.0",
