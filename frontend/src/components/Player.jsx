@@ -10,7 +10,9 @@ import {
   Volume2,
   VolumeX,
   ListMusic,
-  Download
+  Download,
+  Maximize2,
+  Loader2
 } from 'lucide-react'
 import { formatDuration } from '../utils/helpers.js'
 
@@ -32,6 +34,8 @@ export function Player({
   onVolumeChange,
   onToggleQueue,
   onDownload,
+  onOpenFullScreen,
+  isDownloading,
   visualizerRef
 }) {
   const progressBarRef = useRef(null)
@@ -86,7 +90,12 @@ export function Player({
 
   return (
     <footer className="player-bar">
-      <div className="now-playing-meta">
+      <div
+        className="now-playing-meta"
+        onClick={() => currentTrack && onOpenFullScreen?.()}
+        style={{ cursor: currentTrack ? 'pointer' : 'default' }}
+        title={currentTrack ? 'Click to open Full Screen Player' : ''}
+      >
         {currentTrack ? (
           <>
             <img
@@ -198,17 +207,33 @@ export function Player({
           />
         </div>
 
-        <button className="transport-btn" onClick={onToggleQueue} title="Queue" aria-label="Toggle Playing Queue drawer">
+        <button
+          className="transport-btn"
+          onClick={onToggleQueue}
+          title="Queue"
+          aria-label="Toggle Playing Queue drawer"
+        >
           <ListMusic size={16} />
         </button>
+
         <button
           className="transport-btn btn-action-dl"
           onClick={() => currentTrack && onDownload(currentTrack)}
-          disabled={!currentTrack}
+          disabled={!currentTrack || isDownloading}
           title="Direct Download (320kbps M4A with cover art)"
           aria-label="Direct download currently playing track"
         >
-          <Download size={16} />
+          {isDownloading ? <Loader2 size={16} className="spin-loader" /> : <Download size={16} />}
+        </button>
+
+        <button
+          className="transport-btn"
+          onClick={onOpenFullScreen}
+          disabled={!currentTrack}
+          title="Full Screen Music Player"
+          aria-label="Open full screen music player"
+        >
+          <Maximize2 size={16} />
         </button>
       </div>
     </footer>

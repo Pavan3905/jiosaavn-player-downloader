@@ -1,13 +1,14 @@
 import React from 'react'
-import { Search, Disc3, Keyboard, X } from 'lucide-react'
+import { Search, Disc3, Sun, Moon, X } from 'lucide-react'
 
 export function Header({
   searchQuery,
   onSearchChange,
   onSearchClear,
   onOpenQuality,
-  onOpenShortcuts,
   qualityLabel,
+  theme,
+  onToggleTheme,
   searchInputRef
 }) {
   return (
@@ -45,12 +46,12 @@ export function Header({
 
         <button
           className="btn-pill"
-          onClick={onOpenShortcuts}
-          title="Keyboard Shortcuts"
-          aria-label="View Keyboard Shortcuts"
+          onClick={onToggleTheme}
+          title={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+          aria-label={theme === 'dark' ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
         >
-          <Keyboard size={15} />
-          <span className="btn-label">Shortcuts</span>
+          {theme === 'dark' ? <Sun size={15} /> : <Moon size={15} />}
+          <span className="btn-label">{theme === 'dark' ? 'Light' : 'Dark'}</span>
         </button>
       </div>
     </header>

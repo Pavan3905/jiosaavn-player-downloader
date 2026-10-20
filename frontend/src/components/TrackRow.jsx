@@ -1,5 +1,5 @@
 import React from 'react'
-import { Play, Pause, Heart, Plus, Download } from 'lucide-react'
+import { Play, Pause, Heart, Plus, Download, Loader2 } from 'lucide-react'
 import { formatDuration } from '../utils/helpers.js'
 
 export function TrackRow({
@@ -12,7 +12,8 @@ export function TrackRow({
   onToggleLike,
   onAddToQueue,
   onDownload,
-  onAlbumClick
+  onAlbumClick,
+  isDownloading
 }) {
   return (
     <div className={`track-row ${isCurrent ? 'playing' : ''}`}>
@@ -92,10 +93,11 @@ export function TrackRow({
             e.stopPropagation()
             onDownload(track)
           }}
-          title="Download High-Fidelity Track"
+          disabled={isDownloading}
+          title={isDownloading ? 'Downloading...' : 'Direct Download (320kbps M4A)'}
           aria-label={`Download ${track.name}`}
         >
-          <Download size={15} />
+          {isDownloading ? <Loader2 size={15} className="spin-loader" /> : <Download size={15} />}
         </button>
       </div>
     </div>

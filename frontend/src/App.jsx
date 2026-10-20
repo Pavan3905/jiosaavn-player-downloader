@@ -4,8 +4,9 @@ import { FilterBar } from './components/FilterBar.jsx'
 import { TrackRow } from './components/TrackRow.jsx'
 import { MusicCard } from './components/MusicCard.jsx'
 import { Player } from './components/Player.jsx'
+import { FullScreenPlayer } from './components/FullScreenPlayer.jsx'
 import { QueueDrawer } from './components/QueueDrawer.jsx'
-import { QualityModal, ShortcutsModal } from './components/Modals.jsx'
+import { QualityModal } from './components/Modals.jsx'
 import { Toast } from './components/Toast.jsx'
 import {
   normalizeTrack,
@@ -24,6 +25,18 @@ export default function App() {
   const searchAbortCtrlRef = useRef(null)
   const searchTimerRef = useRef(null)
   const playPromiseRef = useRef(null)
+
+  // Theme State (Dark / Light)
+  const [theme, setTheme] = useState(() => localStorage.getItem('saavn_theme') || 'dark')
+
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+    localStorage.setItem('saavn_theme', theme)
+  }, [theme])
+
+  const handleToggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))
+  }
 
   // Player State
   const [queue, setQueue] = useState([])
@@ -59,8 +72,8 @@ export default function App() {
   // Modals & Drawers State
   const [isQueueOpen, setIsQueueOpen] = useState(false)
   const [isQualityOpen, setIsQualityOpen] = useState(false)
-  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false)
-  const [isDownloading, setIsDownloading] = useState(false)
+  const [isFullScreenOpen, setIsFullScreenOpen] = useState(false)
+  const [downloadingTrackId, setDownloadingTrackId] = useState(null)
 
   // Toast State
   const [toast, setToast] = useState({ message: '', isError: false, isVisible: false })
@@ -345,20 +358,20 @@ export default function App() {
     showToast(`Added to queue: ${track.name}`)
   }
 
-  // Direct 1-Click Download Handler (No modal, No lyrics, Full metadata & artwork)
+  // Direct 1-Click Download Handler with Visual Progress Animation
   const handleDirectDownload = async (track) => {
-    if (!track) return
-    setIsDownloading(true)
+    if (!track || downloadingTrackId) return
+    setDownloadingTrackId(track.id)
     showToast(`Downloading “${track.name}” (320kbps M4A)...`)
     try {
       await downloadTrackWithMetadata(track, 'none', (msg) => {
         showToast(msg)
       })
-      showToast(`✓ Downloaded “${track.name}” with cover artwork`)
+      showToast(`✓ Download Complete: “${track.name}”`)
     } catch (err) {
       showToast(err.message || 'Download failed', true)
     } finally {
-      setIsDownloading(false)
+      setDownloadingTrackId(null)
     }
   }
 
@@ -516,7 +529,7 @@ export default function App() {
     }
   }, [])
 
-  // Keyboard Shortcuts Listener
+  // Keyboard Shortcuts Listener (Standard intuitive shortcuts)
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return
@@ -541,6 +554,8 @@ export default function App() {
         handleVolumeChange(Math.max(0, stateRef.current.volume - 0.05))
       } else if (e.key === 'm' || e.key === 'M') {
         handleVolumeChange(stateRef.current.volume > 0 ? 0 : 0.8)
+      } else if (e.key === 'f' || e.key === 'F') {
+        if (currentTrack) setIsFullScreenOpen((prev) => !prev)
       } else if (e.key === 'q' || e.key === 'Q') {
         setIsQueueOpen((prev) => !prev)
       } else if (e.key === 's' || e.key === 'S') {
@@ -550,13 +565,13 @@ export default function App() {
       } else if (e.key === 'Escape') {
         setIsQueueOpen(false)
         setIsQualityOpen(false)
-        setIsShortcutsOpen(false)
+        setIsFullScreenOpen(false)
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  }, [currentTrack])
 
   return (
     <div className="app-layout">
@@ -566,8 +581,9 @@ export default function App() {
           onSearchChange={handleSearchChange}
           onSearchClear={handleSearchClear}
           onOpenQuality={() => setIsQualityOpen(true)}
-          onOpenShortcuts={() => setIsShortcutsOpen(true)}
           qualityLabel={streamQuality.replace('kbps', 'K')}
+          theme={theme}
+          onToggleTheme={handleToggleTheme}
           searchInputRef={searchInputRef}
         />
 
@@ -601,6 +617,7 @@ export default function App() {
                 onAddToQueue={handleAddToQueue}
                 onDownload={(t) => handleDirectDownload(t)}
                 onAlbumClick={(albumId) => handleCardClick(albumId, 'albums')}
+                isDownloading={downloadingTrackId === track.id}
               />
             ))}
           </div>
@@ -700,6 +717,42 @@ export default function App() {
         onVolumeChange={handleVolumeChange}
         onToggleQueue={() => setIsQueueOpen((prev) => !prev)}
         onDownload={(t) => handleDirectDownload(t)}
+        onOpenFullScreen={() => setIsFullScreenOpen(true)}
+        isDownloading={downloadingTrackId === currentTrack?.id}
+        visualizerRef={visualizerCanvasRef}
+      />
+
+      {/* Full Screen Player Mode */}
+      <FullScreenPlayer
+        isOpen={isFullScreenOpen}
+        onClose={() => setIsFullScreenOpen(false)}
+        currentTrack={currentTrack}
+        isPlaying={isPlaying}
+        shuffle={shuffle}
+        repeat={repeat}
+        volume={volume}
+        currentTime={currentTime}
+        duration={duration}
+        streamQuality={streamQuality}
+        isLiked={likedTracks.some((t) => t.id === currentTrack?.id)}
+        onToggleLike={handleToggleLike}
+        onTogglePlayPause={handleTogglePlayPause}
+        onPlayPrev={handlePlayPrev}
+        onPlayNext={handlePlayNext}
+        onToggleShuffle={() => {
+          setShuffle((prev) => !prev)
+          showToast(!shuffle ? 'Shuffle enabled' : 'Shuffle disabled')
+        }}
+        onToggleRepeat={() => {
+          const next = repeat === 'none' ? 'all' : repeat === 'all' ? 'one' : 'none'
+          setRepeat(next)
+          showToast(next === 'one' ? 'Repeat one' : next === 'all' ? 'Repeat all' : 'Repeat off')
+        }}
+        onSeek={handleSeek}
+        onVolumeChange={handleVolumeChange}
+        onToggleQueue={() => setIsQueueOpen((prev) => !prev)}
+        onDownload={(t) => handleDirectDownload(t)}
+        isDownloading={downloadingTrackId === currentTrack?.id}
         visualizerRef={visualizerCanvasRef}
       />
 
@@ -729,12 +782,6 @@ export default function App() {
         currentQuality={streamQuality}
         currentStreamMode={streamMode}
         onSetQuality={handleSetQuality}
-      />
-
-      {/* Shortcuts Modal */}
-      <ShortcutsModal
-        isOpen={isShortcutsOpen}
-        onClose={() => setIsShortcutsOpen(false)}
       />
 
       {/* Toast Feedback */}
