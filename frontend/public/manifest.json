@@ -1,0 +1,16 @@
+{
+  "name": "JioSaavn Studio Player & Downloader",
+  "short_name": "JioSaavn Player",
+  "description": "High-fidelity music streaming, synced lyrics, and metadata-tagged M4A downloader.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0d0b",
+  "theme_color": "#0b0d0b",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "64x64 32x32 24x24 16x16",
+      "type": "image/x-icon"
+    }
+  ]
+}
