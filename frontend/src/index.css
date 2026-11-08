@@ -264,6 +264,12 @@ a {
   border-color: var(--border-hover);
 }
 
+.header-search-toggle {
+  width: 40px;
+  justify-content: center;
+  padding: 0;
+}
+
 .btn-pill:active {
   transform: scale(0.97);
 }

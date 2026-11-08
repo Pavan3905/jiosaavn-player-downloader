@@ -17,7 +17,8 @@ import {
 import { downloadTrackWithMetadata, resolveTrackDetails } from './utils/audioTagger.js'
 
 export default function App() {
-  const audioRef = useRef(new Audio())
+  const audioRef = useRef(null)
+  if (!audioRef.current) audioRef.current = new Audio()
   const searchInputRef = useRef(null)
   const isPlayingRef = useRef(false)
   const searchAbortCtrlRef = useRef(null)
@@ -31,6 +32,10 @@ export default function App() {
 
   useLayoutEffect(() => {
     document.documentElement.setAttribute('data-theme', theme)
+    const themeColor = theme === 'dark' ? '#080b09' : '#f8fafc'
+    document.querySelector('meta[name="theme-color"]')?.setAttribute('content', themeColor)
+    document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')
+      ?.setAttribute('content', theme === 'dark' ? 'black-translucent' : 'default')
   }, [theme])
 
   useEffect(() => {
@@ -219,6 +224,8 @@ export default function App() {
     const list = customQueue || stateRef.current.queue
     if (idx < 0 || idx >= list.length) return
     const track = list[idx]
+    stateRef.current.queue = list
+    stateRef.current.currentIndex = idx
     setCurrentIndex(idx)
     setCurrentTrack(track)
 
@@ -616,6 +623,7 @@ export default function App() {
         description: decodeHtmlEntities(data.description || '')
       }
 
+      window.scrollTo({ top: 0, behavior: 'smooth' })
       setActiveCollection(colObj)
       setTracks(normalized)
       setQueue(normalized)
