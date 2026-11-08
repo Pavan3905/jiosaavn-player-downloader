@@ -22,7 +22,6 @@ export default function App() {
   const searchInputRef = useRef(null)
   const isPlayingRef = useRef(false)
   const searchAbortCtrlRef = useRef(null)
-  const searchTimerRef = useRef(null)
   const playPromiseRef = useRef(null)
   const homeShelvesCacheRef = useRef(null)
 
@@ -66,6 +65,7 @@ export default function App() {
   const streamMode = 'proxy'
 
   // Search & Content State
+  const [searchInputValue, setSearchInputValue] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [searchType, setSearchType] = useState('songs')
   const [tracks, setTracks] = useState([])
@@ -553,34 +553,25 @@ export default function App() {
     return () => observer.disconnect()
   }, [handleLoadMore])
 
-  // Debounced search on query change
   const handleSearchChange = (val) => {
-    setSearchQuery(val)
-    clearTimeout(searchTimerRef.current)
-    searchTimerRef.current = setTimeout(() => {
-      if (!val.trim()) {
-        fetchHomeShelves()
-      } else {
-        executeSearch(val, 0, false, searchType)
-      }
-    }, 400)
+    setSearchInputValue(val)
   }
 
   const handleSearchSubmit = () => {
-    clearTimeout(searchTimerRef.current)
-    executeSearch(searchQuery, 0, false, searchType)
+    const query = searchInputValue.trim()
+    setSearchQuery(query)
+    executeSearch(query, 0, false, searchType)
   }
 
   const handleSearchTypeChange = (type) => {
     setSearchType(type)
     if (!searchQuery.trim()) return
-    clearTimeout(searchTimerRef.current)
     executeSearch(searchQuery, 0, false, type)
   }
 
   const handleSearchClear = () => {
-    clearTimeout(searchTimerRef.current)
     searchAbortCtrlRef.current?.abort()
+    setSearchInputValue('')
     setSearchQuery('')
     setActiveCollection(null)
     setTotalResults(0)
@@ -835,7 +826,7 @@ export default function App() {
     <div className="app-layout">
       <main className={`main-content ${currentTrack ? 'has-player' : ''}`}>
         <Header
-          searchQuery={searchQuery}
+          searchInputValue={searchInputValue}
           onSearchChange={handleSearchChange}
           onSearchSubmit={handleSearchSubmit}
           onSearchClear={handleSearchClear}

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react'
 import { Music2, Search, Sun, Moon, X } from 'lucide-react'
 
 export function Header({
-  searchQuery,
+  searchInputValue,
   onSearchChange,
   onSearchSubmit,
   onSearchClear,
@@ -75,11 +75,11 @@ export function Header({
               className="search-input"
               placeholder={`Search ${searchType}...`}
               aria-label={`Search ${searchType}`}
-              value={searchQuery}
+              value={searchInputValue}
               onChange={(e) => onSearchChange(e.target.value)}
               autoComplete="off"
             />
-            {searchQuery && (
+            {searchInputValue && (
               <button type="button" className="search-clear" onClick={onSearchClear} title="Clear" aria-label="Clear search input">
                 <X size={16} />
               </button>
