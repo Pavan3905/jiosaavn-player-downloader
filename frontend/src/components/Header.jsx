@@ -8,6 +8,7 @@ export function Header({
   onSearchClear,
   searchType,
   onSearchTypeChange,
+  isHome,
   theme,
   onToggleTheme,
   searchInputRef
@@ -39,10 +40,14 @@ export function Header({
         </div>
       </div>
 
-      <div className="search-hero">
-        <p className="search-eyebrow">MUSIC, IN EVERY MOOD</p>
-        <h1 className="search-heading">Find your next favorite.</h1>
-        <p className="search-description">Search songs, albums, artists and playlists.</p>
+      <div className={`search-hero ${isHome ? 'home-search-hero' : 'compact-search-hero'}`}>
+        {!isHome && (
+          <>
+            <p className="search-eyebrow">YOUR NEXT FAVORITE IS OUT THERE</p>
+            <h1 className="search-heading">Find your next favorite.</h1>
+            <p className="search-description">Search songs, albums, artists and playlists.</p>
+          </>
+        )}
 
         <form className="search-box" onSubmit={(event) => {
           event.preventDefault()

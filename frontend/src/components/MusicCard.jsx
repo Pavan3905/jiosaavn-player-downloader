@@ -32,11 +32,11 @@ export const MusicCard = memo(function MusicCard({ item, type, onClick }) {
       role="button"
       tabIndex={0}
       aria-label={`${title} (${badge || type})`}
-      onClick={() => onClick(item.id, type)}
+      onClick={() => onClick(item.id, type, item)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
-          onClick(item.id, type)
+          onClick(item.id, type, item)
         }
       }}
     >

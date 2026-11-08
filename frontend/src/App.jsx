@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
 import { Loader2 } from 'lucide-react'
 import { Header } from './components/Header.jsx'
 import { TrackRow } from './components/TrackRow.jsx'
 import { MusicCard } from './components/MusicCard.jsx'
+import { HomeShelf } from './components/HomeShelf.jsx'
 import { Player } from './components/Player.jsx'
 import { FullScreenPlayer } from './components/FullScreenPlayer.jsx'
 import { CollectionHero } from './components/CollectionHero.jsx'
@@ -22,15 +23,25 @@ export default function App() {
   const searchAbortCtrlRef = useRef(null)
   const searchTimerRef = useRef(null)
   const playPromiseRef = useRef(null)
-  const topPlaylistsCacheRef = useRef([])
+  const homeShelvesCacheRef = useRef(null)
 
-  // Theme State (Dark / Light)
-  const [theme, setTheme] = useState(() => localStorage.getItem('saavn_theme') || 'dark')
+  const [theme, setTheme] = useState(() => (
+    window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+  ))
+
+  useLayoutEffect(() => {
+    document.documentElement.setAttribute('data-theme', theme)
+  }, [theme])
 
   useEffect(() => {
-    document.documentElement.setAttribute('data-theme', theme)
-    localStorage.setItem('saavn_theme', theme)
-  }, [theme])
+    const colorScheme = window.matchMedia('(prefers-color-scheme: dark)')
+    const handleColorSchemeChange = (event) => {
+      setTheme(event.matches ? 'dark' : 'light')
+    }
+
+    colorScheme.addEventListener('change', handleColorSchemeChange)
+    return () => colorScheme.removeEventListener('change', handleColorSchemeChange)
+  }, [])
 
   const handleToggleTheme = () => {
     setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'))
@@ -54,6 +65,7 @@ export default function App() {
   const [searchType, setSearchType] = useState('songs')
   const [tracks, setTracks] = useState([])
   const [cards, setCards] = useState([])
+  const [homeShelves, setHomeShelves] = useState([])
   const [page, setPage] = useState(0)
   const [totalResults, setTotalResults] = useState(0)
   const [hasMore, setHasMore] = useState(false)
@@ -372,75 +384,57 @@ export default function App() {
     }
   }
 
-  // Fetch top, best genuine editorial playlists from JioSaavn
-  const fetchTopPlaylists = async (pageNum = 0, append = false) => {
-    if (!append) {
-      if (searchAbortCtrlRef.current) searchAbortCtrlRef.current.abort()
-      searchAbortCtrlRef.current = new AbortController()
-      setIsLoading(true)
-      setActiveCollection(null)
-      setTracks([])
-      if (pageNum === 0 && topPlaylistsCacheRef.current.length > 0) {
-        setCards(topPlaylistsCacheRef.current)
-        setIsLoading(false)
-        setHasMore(true)
-        return
-      }
-    } else {
-      setIsLoadingMore(true)
-      isLoadingMoreRef.current = true
+  const fetchHomeShelves = async (useCache = true) => {
+    searchAbortCtrlRef.current?.abort()
+    searchAbortCtrlRef.current = new AbortController()
+    setIsLoading(true)
+    setActiveCollection(null)
+    setTracks([])
+    setCards([])
+    setHasMore(false)
+
+    if (useCache && homeShelvesCacheRef.current) {
+      setHomeShelves(homeShelvesCacheRef.current)
+      setIsLoading(false)
+      return
     }
 
-    const signal = searchAbortCtrlRef.current?.signal
+    const sources = [
+      { id: 'songs', title: 'Trending songs', query: 'trending songs' },
+      { id: 'albums', title: 'Popular albums', query: 'latest hits' },
+      { id: 'artists', title: 'Artists to know', query: 'popular singers' },
+      { id: 'playlists', title: 'Top playlists', query: 'trending' }
+    ]
+    const { signal } = searchAbortCtrlRef.current
 
     try {
-      const queries =
-        pageNum === 0
-          ? ['trending', 'superhits', 'top hits', 'viral']
-          : ['punjabi hits', 'telugu hits', 'tamil hits', 'romantic hits']
-
-      const fetches = queries.map((q) =>
-        fetch(apiUrl(`/api/search/playlists?query=${encodeURIComponent(q)}&page=${pageNum}&limit=25`), { signal })
-          .then((r) => (r.ok ? r.json() : { data: { results: [] } }))
-          .catch(() => ({ data: { results: [] } }))
-      )
-
-      const responses = await Promise.all(fetches)
-      const combined = []
-      const seen = new Set()
-
-      if (append) {
-        cards.forEach((c) => seen.add(c.id))
-      }
-
-      for (const res of responses) {
-        const list = res.data?.results || []
-        for (const item of list) {
-          if (!item || !item.id || seen.has(item.id)) continue
-          if (item.songCount && item.songCount > 0) {
-            seen.add(item.id)
-            combined.push(item)
-          }
+      const responses = await Promise.allSettled(sources.map(async (source) => {
+        const response = await fetch(
+          apiUrl(`/api/search/${source.id}?query=${encodeURIComponent(source.query)}&page=0&limit=12`),
+          { signal }
+        )
+        if (!response.ok) throw new Error(`Could not load ${source.title.toLowerCase()}`)
+        const json = await response.json()
+        const results = json.data?.results || []
+        return {
+          ...source,
+          items: source.id === 'songs' ? results.map(normalizeTrack).filter(Boolean) : results
         }
+      }))
+      const shelves = responses
+        .filter((result) => result.status === 'fulfilled' && result.value.items.length > 0)
+        .map((result) => result.value)
+      if (shelves.length === 0 && responses.some((result) => result.status === 'rejected')) {
+        throw new Error('Could not load music shelves')
       }
-
-      setPage(pageNum)
-      setHasMore(combined.length > 0)
-
-      if (append) {
-        setCards((prev) => [...prev, ...combined])
-      } else {
-        setCards(combined)
-        topPlaylistsCacheRef.current = combined
-      }
+      setHomeShelves(shelves)
+      homeShelvesCacheRef.current = shelves
     } catch (err) {
       if (err.name !== 'AbortError') {
-        showToast('Could not load top playlists', true)
+        showToast(err.message || 'Could not load music shelves', true)
       }
     } finally {
       setIsLoading(false)
-      setIsLoadingMore(false)
-      isLoadingMoreRef.current = false
     }
   }
 
@@ -448,7 +442,7 @@ export default function App() {
   const executeSearch = async (query, pageNum = 0, append = false, category = searchType) => {
     const trimmed = (query || '').trim()
     if (!trimmed) {
-      fetchTopPlaylists(0, false)
+      fetchHomeShelves()
       return
     }
 
@@ -528,11 +522,7 @@ export default function App() {
     }
     isLoadingMoreRef.current = true
     setIsLoadingMore(true)
-    if (searchQuery.trim()) {
-      executeSearch(searchQuery, page + 1, true, searchType)
-    } else {
-      fetchTopPlaylists(page + 1, true)
-    }
+    executeSearch(searchQuery, page + 1, true, searchType)
   }, [isLoading, hasMore, activeCollection, searchQuery, searchType, page])
 
   useEffect(() => {
@@ -562,7 +552,7 @@ export default function App() {
     clearTimeout(searchTimerRef.current)
     searchTimerRef.current = setTimeout(() => {
       if (!val.trim()) {
-        fetchTopPlaylists(0, false)
+        fetchHomeShelves()
       } else {
         executeSearch(val, 0, false, searchType)
       }
@@ -587,7 +577,7 @@ export default function App() {
     setSearchQuery('')
     setActiveCollection(null)
     setTotalResults(0)
-    fetchTopPlaylists(0, false)
+    fetchHomeShelves()
   }
 
   // Load Album / Playlist / Artist details
@@ -637,6 +627,23 @@ export default function App() {
     }
   }, [cards, showToast])
 
+  const handleHomeCardClick = useCallback((id, type, item) => {
+    if (type !== 'songs') {
+      handleCardClick(id, type)
+      return
+    }
+
+    const songs = homeShelves.find((shelf) => shelf.id === 'songs')?.items || []
+    const index = songs.findIndex((song) => song.id === id)
+    if (index >= 0) {
+      setQueue(songs)
+      playTrackAtIndex(index, songs)
+    } else if (item) {
+      setQueue([item])
+      playTrackAtIndex(0, [item])
+    }
+  }, [handleCardClick, homeShelves, playTrackAtIndex])
+
   const handleTrackPlay = useCallback((track, index) => {
     playTrackAtIndex(index)
   }, [playTrackAtIndex])
@@ -652,12 +659,10 @@ export default function App() {
   const handleBackFromCollection = () => {
     setActiveCollection(null)
     setTracks([])
-    if (topPlaylistsCacheRef.current.length > 0) {
-      setCards(topPlaylistsCacheRef.current)
-    } else if (cachedCards.length > 0) {
+    if (cachedCards.length > 0) {
       setCards(cachedCards)
     } else {
-      fetchTopPlaylists(0, false)
+      fetchHomeShelves()
     }
   }
 
@@ -719,7 +724,7 @@ export default function App() {
 
   // Initial load: Top genuine playlists
   useEffect(() => {
-    fetchTopPlaylists(0, false)
+    fetchHomeShelves()
   }, [])
 
 
@@ -791,6 +796,7 @@ export default function App() {
           onSearchClear={handleSearchClear}
           searchType={searchType}
           onSearchTypeChange={handleSearchTypeChange}
+          isHome={!searchQuery.trim() && !activeCollection}
           theme={theme}
           onToggleTheme={handleToggleTheme}
           searchInputRef={searchInputRef}
@@ -820,16 +826,6 @@ export default function App() {
           </div>
         )}
 
-        {!searchQuery.trim() && !activeCollection && cards.length > 0 && (
-          <div className="results-heading home-results-heading">
-            <div>
-              <p className="results-eyebrow">A FRESH SOUNDTRACK</p>
-              <h2>Made for your mood.</h2>
-            </div>
-            <span className="results-count">Curated playlists</span>
-          </div>
-        )}
-
         {/* Tracks Table (Rendered for songs search OR when viewing an active collection) */}
         {tracks.length > 0 && (activeCollection || searchQuery.trim()) && (
           <div className="track-table">
@@ -849,9 +845,12 @@ export default function App() {
           </div>
         )}
 
-        {/* Top Genuine Playlists Grid (Default view: no heading, just top genuine playlists) */}
-        {cards.length > 0 && !activeCollection && (!searchQuery.trim() || searchType !== 'songs') && (
-          <div className="card-grid">
+        {!searchQuery.trim() && !activeCollection && homeShelves.map((shelf) => (
+          <HomeShelf key={shelf.id} shelf={shelf} onCardClick={handleHomeCardClick} />
+        ))}
+
+        {cards.length > 0 && !activeCollection && searchQuery.trim() && searchType !== 'songs' && (
+          <div className="card-grid search-results-grid">
             {cards.map((item) => (
               <MusicCard
                 key={item.id}
@@ -864,7 +863,7 @@ export default function App() {
         )}
 
         {/* Infinite Scroll trigger & loading spinner on scroll */}
-        {hasMore && !activeCollection && (
+        {hasMore && !activeCollection && searchQuery.trim() && (
           <div ref={sentinelRef} className="infinite-scroll-sentinel">
             <div className="infinite-scroll-loader">
               <Loader2 size={18} className="spin-loader" />
@@ -874,8 +873,8 @@ export default function App() {
         )}
 
         {/* Shimmer Skeleton Loading */}
-        {isLoading && tracks.length === 0 && cards.length === 0 && (
-          <div className="skeleton-container">
+        {isLoading && tracks.length === 0 && cards.length === 0 && homeShelves.length === 0 && (
+          <div className={`skeleton-container ${searchQuery.trim() ? '' : 'home-shelf-skeletons'}`}>
             {searchQuery.trim() && searchType === 'songs' ? (
               <div className="track-table">
                 {[...Array(8)].map((_, i) => (
@@ -892,21 +891,37 @@ export default function App() {
                 ))}
               </div>
             ) : (
-              <div className="card-grid">
-                {[...Array(12)].map((_, i) => (
-                  <div key={i} className="skeleton-card">
-                    <div className="skeleton-block skeleton-card-cover"></div>
-                    <div className="skeleton-block skeleton-card-title"></div>
-                    <div className="skeleton-block skeleton-card-desc"></div>
-                  </div>
-                ))}
-              </div>
+              searchQuery.trim() ? (
+                <div className="card-grid">
+                  {[...Array(8)].map((_, i) => (
+                    <div key={i} className="skeleton-card">
+                      <div className="skeleton-block skeleton-card-cover"></div>
+                      <div className="skeleton-block skeleton-card-title"></div>
+                      <div className="skeleton-block skeleton-card-desc"></div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                ['songs', 'albums', 'artists'].map((shelf) => (
+                  <section className="home-shelf-skeleton" key={shelf}>
+                    <div className="skeleton-block shelf-title-skeleton" />
+                    <div className="home-shelf-rail">
+                      {[...Array(6)].map((_, i) => (
+                        <div className="shelf-card-skeleton" key={i}>
+                          <div className="skeleton-block skeleton-card-cover" />
+                          <div className="skeleton-block skeleton-card-title" />
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                ))
+              )
             )}
           </div>
         )}
 
         {/* Empty state */}
-        {!isLoading && tracks.length === 0 && cards.length === 0 && !activeCollection && (
+        {!isLoading && tracks.length === 0 && cards.length === 0 && homeShelves.length === 0 && !activeCollection && (
           <div className="empty-box">
             <h3>{searchQuery.trim() ? 'No matches this time' : 'Nothing here yet'}</h3>
             <p>{searchQuery.trim()
