@@ -108,6 +108,27 @@ select {
 
 button {
   cursor: pointer;
+  transition:
+    color 160ms ease,
+    background-color 160ms ease,
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    transform 160ms ease,
+    opacity 160ms ease;
+}
+
+button:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  button {
+    transition: none;
+  }
 }
 
 a {
@@ -2812,26 +2833,23 @@ a {
 }
 
 .btn-back {
-  display: inline-flex;
+  display: inline-grid;
   align-items: center;
-  gap: 8px;
-  padding: 8px 16px;
-  border-radius: var(--radius-full);
+  justify-items: center;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  border-radius: 12px;
   background: var(--surface);
   border: 1px solid var(--border);
   color: var(--text-secondary);
-  font-size: 13px;
-  font-weight: 600;
   cursor: pointer;
-  width: fit-content;
-  transition: var(--transition);
 }
 
 .btn-back:hover {
   background: var(--surface-hover);
   color: var(--text);
   border-color: var(--border-hover);
-  transform: translateX(-2px);
 }
 
 .collection-main {
@@ -2928,20 +2946,18 @@ a {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 22px;
-  border-radius: var(--radius-full);
+  padding: 10px 18px;
+  border-radius: 12px;
   background: var(--accent);
   color: #04140b;
   font-size: 13.5px;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 4px 16px var(--accent-glow);
   transition: var(--transition);
 }
 
 .btn-collection-play:hover {
   background: var(--accent-hover);
-  transform: scale(1.04);
 }
 
 .btn-collection-action {
@@ -2949,7 +2965,7 @@ a {
   align-items: center;
   gap: 7px;
   padding: 10px 18px;
-  border-radius: var(--radius-full);
+  border-radius: 12px;
   background: var(--surface);
   border: 1px solid var(--border);
   color: var(--text-secondary);

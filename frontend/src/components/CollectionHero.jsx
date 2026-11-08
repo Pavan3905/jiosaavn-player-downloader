@@ -33,7 +33,6 @@ export function CollectionHero({
         aria-label="Back to results"
       >
         <ArrowLeft size={16} />
-        <span>Back</span>
       </button>
 
       <div className="collection-main">

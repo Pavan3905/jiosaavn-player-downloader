@@ -588,7 +588,7 @@ export default function App() {
   }
 
   // Load Album / Playlist / Artist details
-  const handleCardClick = useCallback(async (id, type = 'playlists') => {
+  const handleCardClick = useCallback(async (id, type = 'playlists', { fromHistory = false } = {}) => {
     setIsLoading(true)
     if (cards.length > 0) {
       setCachedCards(cards)
@@ -623,6 +623,19 @@ export default function App() {
         description: decodeHtmlEntities(data.description || '')
       }
 
+      if (!fromHistory) {
+        window.history.replaceState(
+          { ...window.history.state, saavnScrollY: window.scrollY },
+          '',
+          window.location.href
+        )
+        window.history.pushState(
+          { ...window.history.state, saavnCollection: { id: data.id || id, type } },
+          '',
+          window.location.href
+        )
+      }
+
       window.scrollTo({ top: 0, behavior: 'smooth' })
       setActiveCollection(colObj)
       setTracks(normalized)
@@ -634,6 +647,25 @@ export default function App() {
       setIsLoading(false)
     }
   }, [cards, showToast])
+
+  useEffect(() => {
+    const handlePopState = (event) => {
+      const collection = event.state?.saavnCollection
+      if (collection) {
+        handleCardClick(collection.id, collection.type, { fromHistory: true })
+        return
+      }
+
+      const returnScrollY = Number(event.state?.saavnScrollY) || 0
+      setActiveCollection(null)
+      setTracks([])
+      setIsLoading(false)
+      window.requestAnimationFrame(() => window.scrollTo(0, returnScrollY))
+    }
+
+    window.addEventListener('popstate', handlePopState)
+    return () => window.removeEventListener('popstate', handlePopState)
+  }, [handleCardClick])
 
   const handleHomeCardClick = useCallback((id, type, item) => {
     if (type !== 'songs') {
@@ -665,6 +697,11 @@ export default function App() {
   }, [])
 
   const handleBackFromCollection = () => {
+    if (window.history.state?.saavnCollection?.id === activeCollection?.id) {
+      window.history.back()
+      return
+    }
+
     setActiveCollection(null)
     setTracks([])
     if (cachedCards.length > 0) {
