@@ -183,17 +183,70 @@ export function tagMp4(audioBytes, metadata) {
   return output
 }
 
+function tagMp4InWorker(audioBytes, metadata) {
+  if (typeof Worker === 'undefined') {
+    return Promise.resolve().then(() => tagMp4(audioBytes, metadata))
+  }
+
+  const { cover, ...workerMetadata } = metadata
+  const worker = new Worker(new URL('./audioTagger.worker.js', import.meta.url), { type: 'module' })
+  return new Promise((resolve, reject) => {
+    worker.addEventListener('message', (event) => {
+      worker.terminate()
+      if (event.data.error) {
+        reject(new Error(event.data.error))
+      } else {
+        resolve(new Uint8Array(event.data.tagged))
+      }
+    }, { once: true })
+    worker.addEventListener('error', (event) => {
+      worker.terminate()
+      reject(event.error || new Error('MP4 tagging worker failed.'))
+    }, { once: true })
+    try {
+      worker.postMessage({
+        audio: audioBytes.buffer,
+        cover: cover.buffer,
+        metadata: workerMetadata
+      }, [audioBytes.buffer, cover.buffer])
+    } catch (error) {
+      worker.terminate()
+      reject(error)
+    }
+  })
+}
+
+const pendingTrackDetails = new Map()
+
 export async function resolveTrackDetails(track) {
   if (track.detailsLoaded) return track
-  const response = await fetch(apiUrl('/api/songs/' + encodeURIComponent(track.id)))
-  if (!response.ok) throw new Error('Song details could not be loaded (' + response.status + ').')
-  const json = await response.json()
-  const fullItem = json.data && json.data[0]
-  const details = fullItem && normalizeTrack(fullItem)
-  if (!details || !details.downloadUrl.length) throw new Error('No audio stream is available for this song.')
+  const pending = pendingTrackDetails.get(track.id)
+  if (pending) {
+    const details = await pending
+    Object.assign(track, details)
+    return track
+  }
 
-  Object.assign(track, details, { detailsLoaded: true })
-  return track
+  const request = (async () => {
+    const response = await fetch(apiUrl('/api/songs/' + encodeURIComponent(track.id)))
+    if (!response.ok) throw new Error('Song details could not be loaded (' + response.status + ').')
+    const json = await response.json()
+    const fullItem = json.data && json.data[0]
+    const details = fullItem && normalizeTrack(fullItem)
+    if (!details || !details.downloadUrl.length) throw new Error('No audio stream is available for this song.')
+    return { ...details, detailsLoaded: true }
+  })()
+
+  pendingTrackDetails.set(track.id, request)
+  try {
+    const details = await request
+    Object.assign(track, details)
+    return track
+  } finally {
+    if (pendingTrackDetails.get(track.id) === request) {
+      pendingTrackDetails.delete(track.id)
+    }
+  }
 }
 
 export async function downloadTrackWithMetadata(track, lyricsMode = 'embed', onProgress = () => {}) {
@@ -244,7 +297,7 @@ export async function downloadTrackWithMetadata(track, lyricsMode = 'embed', onP
   }
 
   onProgress('Tagging MP4 container with artwork & metadata...')
-  const tagged = tagMp4(audioBytes, {
+  const tagged = await tagMp4InWorker(audioBytes, {
     title: track.name || 'Untitled',
     artist: track.artist || 'Various Artists',
     albumArtist: track.artist || 'Various Artists',

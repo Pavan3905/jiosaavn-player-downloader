@@ -1,7 +1,7 @@
-import React from 'react'
+import React, { memo } from 'react'
 import { decodeHtmlEntities } from '../utils/helpers.js'
 
-export function MusicCard({ item, type, onClick }) {
+export const MusicCard = memo(function MusicCard({ item, type, onClick }) {
   const img =
     (item.image && item.image[item.image.length - 1] && item.image[item.image.length - 1].url) ||
     (typeof item.image === 'string' ? item.image : '') ||
@@ -48,4 +48,4 @@ export function MusicCard({ item, type, onClick }) {
       <div className="card-desc" title={desc}>{desc}</div>
     </div>
   )
-}
+})

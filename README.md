@@ -6,8 +6,8 @@ An unofficial, high-performance full-stack web application for streaming, search
 
 ## ⚡ Architecture
 
-- **Backend (`/backend`)**: Pure Node.js (ES Modules JavaScript). High-performance API using Hono with native range request streaming proxy (`HTTP 206 Partial Content`), download proxy, in-memory IP rate limiting, SSRF protection, TTL caching, and DES-ECB link decryption via `node-forge`.
-- **Frontend (`/frontend`)**: Pure React (JSX JavaScript) built with Vite. Modern dark theme player with Media Session API, continuous Radio Autoplay, offline detection, synchronized glowing lyrics, queue manager, 5-band equalizer, sleep timer, quality selector, and keyboard shortcuts.
+- **Backend (`/backend`)**: Pure Node.js (ES Modules JavaScript). Hono API with native range request streaming (`HTTP 206 Partial Content`), cancelable/time-limited media proxy requests, in-memory IP rate limiting, SSRF protection, TTL caching with in-flight request coalescing, and DES-ECB link decryption via `node-forge`.
+- **Frontend (`/frontend`)**: Pure React (JSX JavaScript) built with Vite. Includes a Media Session API player, continuous Radio Autoplay, offline detection, synchronized lyrics, queue manager, 5-band equalizer, sleep timer, quality selector, keyboard shortcuts, memoized result lists, worker-based MP4 tagging, and bounded parallel collection downloads.
 - **Serverless Integration (`/api`)**: Vercel Serverless Function entrypoint ready for 0-error 1-click deployment.
 
 ---

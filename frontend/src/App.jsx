@@ -62,7 +62,7 @@ export default function App() {
 
   // View State
   const [isFullScreenOpen, setIsFullScreenOpen] = useState(false)
-  const [downloadingTrackId, setDownloadingTrackId] = useState(null)
+  const [downloadingTrackIds, setDownloadingTrackIds] = useState(() => new Set())
   const [activeCollection, setActiveCollection] = useState(null)
   const [cachedCards, setCachedCards] = useState([])
   const [isDownloadingCollection, setIsDownloadingCollection] = useState(false)
@@ -241,8 +241,8 @@ export default function App() {
   }, [showToast])
 
   // Play track at queue index
-  const playTrackAtIndex = async (idx, customQueue = null) => {
-    const list = customQueue || queue
+  const playTrackAtIndex = useCallback(async (idx, customQueue = null) => {
+    const list = customQueue || stateRef.current.queue
     if (idx < 0 || idx >= list.length) return
     const track = list[idx]
     setCurrentIndex(idx)
@@ -290,7 +290,7 @@ export default function App() {
           showToast('Playback was interrupted. Press Play to start.', true)
         }
       })
-  }
+  }, [showToast])
 
   const handleTogglePlayPause = () => {
     const audio = audioRef.current
@@ -311,7 +311,7 @@ export default function App() {
     }
   }
 
-  const handlePlayNext = async () => {
+  const handlePlayNext = useCallback(async () => {
     const { queue: q, currentIndex: cIdx, shuffle: shuf, repeat: rep } = stateRef.current
     if (!q.length) return
     let nextIdx
@@ -351,9 +351,9 @@ export default function App() {
       return
     }
     playTrackAtIndex(nextIdx)
-  }
+  }, [playTrackAtIndex, showToast])
 
-  const handlePlayPrev = () => {
+  const handlePlayPrev = useCallback(() => {
     const audio = audioRef.current
     const { queue: q, currentIndex: cIdx } = stateRef.current
     if (audio.currentTime > 3) {
@@ -365,7 +365,7 @@ export default function App() {
     } else {
       playTrackAtIndex(q.length - 1)
     }
-  }
+  }, [playTrackAtIndex])
 
   const handleSeek = (newTime) => {
     const audio = audioRef.current
@@ -380,9 +380,9 @@ export default function App() {
   }
 
   // Direct 1-Click Download Handler with Visual Progress Animation
-  const handleDirectDownload = async (track) => {
-    if (!track || downloadingTrackId) return
-    setDownloadingTrackId(track.id)
+  const handleDirectDownload = useCallback(async (track) => {
+    if (!track || downloadingTrackIds.size > 0) return
+    setDownloadingTrackIds((prev) => new Set(prev).add(track.id))
     showToast(`Downloading “${track.name}”...`)
     try {
       await downloadTrackWithMetadata(track, 'none', (msg) => {
@@ -392,9 +392,13 @@ export default function App() {
     } catch (err) {
       showToast(err.message || 'Download failed', true)
     } finally {
-      setDownloadingTrackId(null)
+      setDownloadingTrackIds((prev) => {
+        const next = new Set(prev)
+        next.delete(track.id)
+        return next
+      })
     }
-  }
+  }, [downloadingTrackIds, showToast])
 
   const handleGoToAlbum = (album) => {
     if (!album) return
@@ -434,7 +438,7 @@ export default function App() {
           : ['punjabi hits', 'telugu hits', 'tamil hits', 'romantic hits']
 
       const fetches = queries.map((q) =>
-        fetch(apiUrl(`/api/search/playlists?query=${encodeURIComponent(q)}&limit=25`), { signal })
+        fetch(apiUrl(`/api/search/playlists?query=${encodeURIComponent(q)}&page=${pageNum}&limit=25`), { signal })
           .then((r) => (r.ok ? r.json() : { data: { results: [] } }))
           .catch(() => ({ data: { results: [] } }))
       )
@@ -579,20 +583,6 @@ export default function App() {
     return () => observer.disconnect()
   }, [handleLoadMore])
 
-  useEffect(() => {
-    const onScroll = () => {
-      if (
-        window.innerHeight + window.scrollY >=
-        document.documentElement.scrollHeight - 600
-      ) {
-        handleLoadMore()
-      }
-    }
-
-    window.addEventListener('scroll', onScroll, { passive: true })
-    return () => window.removeEventListener('scroll', onScroll)
-  }, [handleLoadMore])
-
   // Debounced search on query change
   const handleSearchChange = (val) => {
     setSearchQuery(val)
@@ -613,11 +603,12 @@ export default function App() {
   }
 
   // Load Album / Playlist / Artist details
-  const handleCardClick = async (id, type = 'playlists') => {
+  const handleCardClick = useCallback(async (id, type = 'playlists') => {
     setIsLoading(true)
     if (cards.length > 0) {
       setCachedCards(cards)
     }
+
     try {
       const endpoint = apiUrl(`/api/${type}?id=${encodeURIComponent(id)}${type === 'playlists' ? '&limit=100' : ''}`)
       const res = await fetch(endpoint)
@@ -656,7 +647,23 @@ export default function App() {
     } finally {
       setIsLoading(false)
     }
-  }
+  }, [cards, showToast])
+
+  const handleTrackPlay = useCallback((track, index) => {
+    playTrackAtIndex(index)
+  }, [playTrackAtIndex])
+
+  const handleAlbumClick = useCallback((albumId) => {
+    handleCardClick(albumId, 'albums')
+  }, [handleCardClick])
+
+  const handlePlaylistClick = useCallback((id) => {
+    handleCardClick(id, 'playlists')
+  }, [handleCardClick])
+
+  const handleCollectionTrackDownload = useCallback((track) => {
+    return downloadTrackWithMetadata(track, 'none')
+  }, [])
 
   const handleBackFromCollection = () => {
     setActiveCollection(null)
@@ -693,20 +700,37 @@ export default function App() {
     setIsDownloadingCollection(true)
     showToast(`Downloading ${tracks.length} tracks from “${activeCollection?.name || 'Album'}”...`)
     let successCount = 0
-    for (let i = 0; i < tracks.length; i++) {
-      const track = tracks[i]
-      setDownloadingTrackId(track.id)
-      try {
-        await downloadTrackWithMetadata(track, 'none')
-        successCount++
-        showToast(`Downloaded (${i + 1}/${tracks.length}): “${track.name}”`)
-      } catch (err) {
-        showToast(`Skipped “${track.name}”: ${err.message}`, true)
+    let completedCount = 0
+    let nextIndex = 0
+    const worker = async () => {
+      while (nextIndex < tracks.length) {
+        const index = nextIndex++
+        const track = tracks[index]
+        setDownloadingTrackIds((prev) => new Set(prev).add(track.id))
+        try {
+          await handleCollectionTrackDownload(track)
+          successCount++
+          completedCount++
+          showToast(`Downloaded (${completedCount}/${tracks.length}): “${track.name}”`)
+        } catch (err) {
+          completedCount++
+          showToast(`Skipped “${track.name}”: ${err.message}`, true)
+        } finally {
+          setDownloadingTrackIds((prev) => {
+            const next = new Set(prev)
+            next.delete(track.id)
+            return next
+          })
+        }
       }
     }
-    setDownloadingTrackId(null)
-    setIsDownloadingCollection(false)
-    showToast(`✓ Completed download: ${successCount}/${tracks.length} tracks`)
+
+    try {
+      await Promise.all(Array.from({ length: Math.min(2, tracks.length) }, () => worker()))
+      showToast(`✓ Completed download: ${successCount}/${tracks.length} tracks`)
+    } finally {
+      setIsDownloadingCollection(false)
+    }
   }
 
   // Initial load: Top genuine playlists
@@ -809,10 +833,10 @@ export default function App() {
                 index={idx}
                 isCurrent={currentTrack?.id === track.id}
                 isPlaying={isPlaying}
-                onPlay={() => playTrackAtIndex(idx)}
-                onDownload={(t) => handleDirectDownload(t)}
-                onAlbumClick={(albumId) => handleCardClick(albumId, 'albums')}
-                isDownloading={downloadingTrackId === track.id}
+                onPlay={handleTrackPlay}
+                onDownload={handleDirectDownload}
+                onAlbumClick={handleAlbumClick}
+                isDownloading={downloadingTrackIds.has(track.id)}
               />
             ))}
           </div>
@@ -826,7 +850,7 @@ export default function App() {
                 key={item.id}
                 item={item}
                 type="playlists"
-                onClick={(id) => handleCardClick(id, 'playlists')}
+                onClick={handlePlaylistClick}
               />
             ))}
           </div>
@@ -910,10 +934,10 @@ export default function App() {
           }}
           onSeek={handleSeek}
           onVolumeChange={handleVolumeChange}
-          onDownload={(t) => handleDirectDownload(t)}
+          onDownload={handleDirectDownload}
           onOpenFullScreen={() => setIsFullScreenOpen(true)}
           onGoToAlbum={handleGoToAlbum}
-          isDownloading={downloadingTrackId === currentTrack?.id}
+          isDownloading={downloadingTrackIds.has(currentTrack?.id)}
         />
       )}
 
@@ -942,9 +966,9 @@ export default function App() {
         }}
         onSeek={handleSeek}
         onVolumeChange={handleVolumeChange}
-        onDownload={(t) => handleDirectDownload(t)}
+        onDownload={handleDirectDownload}
         onGoToAlbum={handleGoToAlbum}
-        isDownloading={downloadingTrackId === currentTrack?.id}
+        isDownloading={downloadingTrackIds.has(currentTrack?.id)}
       />
 
       {/* Toast Feedback */}

@@ -7,8 +7,8 @@
     "dev:backend": "node --watch backend/src/server.js",
     "dev:frontend": "cd frontend && npm run dev",
     "dev": "node backend/src/server.js",
-    "build:frontend": "cd frontend && npm install && npm run build",
-    "build": "cd frontend && npm install && npm run build",
+    "build:frontend": "npm --prefix frontend run build",
+    "build": "npm --prefix frontend run build",
     "start": "node backend/src/server.js"
   },
   "engines": {

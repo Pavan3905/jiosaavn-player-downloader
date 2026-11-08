@@ -21,6 +21,24 @@ const isAllowedMediaUrl = (value) => {
 const rateLimitMap = new Map();
 const RATE_LIMIT_WINDOW = 60 * 1000;
 const MAX_REQUESTS_PER_WINDOW = 120;
+const MEDIA_REQUEST_TIMEOUT_MS = 15 * 1000;
+
+const fetchMedia = async (url, headers, requestSignal) => {
+    const timeoutController = new AbortController();
+    const timeout = setTimeout(() => timeoutController.abort(), MEDIA_REQUEST_TIMEOUT_MS);
+    const signals = [timeoutController.signal];
+    if (requestSignal) {
+        signals.push(requestSignal);
+    }
+    try {
+        return await fetch(url, {
+            headers,
+            signal: AbortSignal.any(signals)
+        });
+    } finally {
+        clearTimeout(timeout);
+    }
+};
 
 const rateLimiter = async (c, next) => {
     const ip = c.req.header('x-forwarded-for')?.split(',')[0]?.trim() || 
@@ -79,7 +97,7 @@ export class App {
                 if (rangeHeader) {
                     requestHeaders['Range'] = rangeHeader;
                 }
-                const upstream = await fetch(targetUrl, { headers: requestHeaders });
+                const upstream = await fetchMedia(targetUrl, requestHeaders, c.req.raw.signal);
                 const headers = new Headers();
                 const forwardHeaders = [
                     'content-type',
@@ -120,11 +138,9 @@ export class App {
             try {
                 if (!isAllowedMediaUrl(targetUrl))
                     return c.text('Forbidden host', 403);
-                const upstream = await fetch(targetUrl, {
-                    headers: {
-                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                    }
-                });
+                const upstream = await fetchMedia(targetUrl, {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }, c.req.raw.signal);
                 if (!upstream.ok) {
                     return new Response(`Upstream media request failed (${upstream.status})`, {
                         status: upstream.status

@@ -1,8 +1,8 @@
-import React from 'react'
+import React, { memo } from 'react'
 import { Play, Pause, Download, Loader2 } from 'lucide-react'
 import { formatDuration } from '../utils/helpers.js'
 
-export function TrackRow({
+export const TrackRow = memo(function TrackRow({
   track,
   index,
   isCurrent,
@@ -77,4 +77,4 @@ export function TrackRow({
       </div>
     </div>
   )
-}
+})
