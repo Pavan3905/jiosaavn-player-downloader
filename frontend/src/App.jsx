@@ -51,9 +51,11 @@ export default function App() {
 
   // Search & Content State
   const [searchQuery, setSearchQuery] = useState('')
+  const [searchType, setSearchType] = useState('songs')
   const [tracks, setTracks] = useState([])
   const [cards, setCards] = useState([])
   const [page, setPage] = useState(0)
+  const [totalResults, setTotalResults] = useState(0)
   const [hasMore, setHasMore] = useState(false)
   const [isLoading, setIsLoading] = useState(true)
   const [isLoadingMore, setIsLoadingMore] = useState(false)
@@ -78,46 +80,6 @@ export default function App() {
       document.body.style.overflow = ''
     }
   }, [isFullScreenOpen])
-
-  // PWA Save as App / Install State
-  const [installPrompt, setInstallPrompt] = useState(null)
-
-  useEffect(() => {
-    const handleBeforeInstall = (e) => {
-      e.preventDefault()
-      setInstallPrompt(e)
-    }
-
-    const handleAppInstalled = () => {
-      setInstallPrompt(null)
-      showToast('✓ JioSaavn installed as app!')
-    }
-
-    window.addEventListener('beforeinstallprompt', handleBeforeInstall)
-    window.addEventListener('appinstalled', handleAppInstalled)
-
-    return () => {
-      window.removeEventListener('beforeinstallprompt', handleBeforeInstall)
-      window.removeEventListener('appinstalled', handleAppInstalled)
-    }
-  }, [])
-
-  const handleInstallApp = async () => {
-    if (!installPrompt) {
-      showToast('To save as app: Click the Install icon in your browser address bar or menu.')
-      return
-    }
-    installPrompt.prompt()
-    try {
-      const { outcome } = await installPrompt.userChoice
-      if (outcome === 'accepted') {
-        setInstallPrompt(null)
-        showToast('Installing JioSaavn App...')
-      }
-    } catch {
-      // ignore
-    }
-  }
 
   // Toast State
   const [toast, setToast] = useState({ message: '', isError: false, isVisible: false })
@@ -483,7 +445,7 @@ export default function App() {
   }
 
   // Search songs when query is present
-  const executeSearch = async (query, pageNum = 0, append = false) => {
+  const executeSearch = async (query, pageNum = 0, append = false, category = searchType) => {
     const trimmed = (query || '').trim()
     if (!trimmed) {
       fetchTopPlaylists(0, false)
@@ -505,18 +467,20 @@ export default function App() {
 
     try {
       const res = await fetch(
-        apiUrl(`/api/search/songs?query=${encodeURIComponent(trimmed)}&page=${pageNum}&limit=25`),
+        apiUrl(`/api/search/${category}?query=${encodeURIComponent(trimmed)}&page=${pageNum}&limit=25`),
         { signal }
       )
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
       const json = await res.json()
       const rawResults = json.data?.results || []
-      const normalized = rawResults.map(normalizeTrack).filter(Boolean)
+      const normalized = category === 'songs' ? rawResults.map(normalizeTrack).filter(Boolean) : rawResults
+      const total = Number(json.data?.total) || 0
 
       setPage(pageNum)
-      setHasMore(normalized.length > 0)
+      setTotalResults(total)
+      setHasMore(total > (pageNum + 1) * 25 || normalized.length === 25)
 
-      if (append) {
+      if (category === 'songs' && append) {
         setTracks((prev) => {
           const seen = new Set(prev.map((t) => t.id))
           const fresh = normalized.filter((t) => !seen.has(t.id))
@@ -527,10 +491,19 @@ export default function App() {
           const fresh = normalized.filter((t) => !seen.has(t.id))
           return [...prev, ...fresh]
         })
-      } else {
+      } else if (category === 'songs') {
         setTracks(normalized)
         setQueue(normalized)
         setCards([])
+      } else if (append) {
+        setCards((prev) => {
+          const seen = new Set(prev.map((item) => item.id))
+          return [...prev, ...normalized.filter((item) => !seen.has(item.id))]
+        })
+        setTracks([])
+      } else {
+        setCards(normalized)
+        setTracks([])
       }
     } catch (err) {
       if (err.name !== 'AbortError') {
@@ -556,11 +529,11 @@ export default function App() {
     isLoadingMoreRef.current = true
     setIsLoadingMore(true)
     if (searchQuery.trim()) {
-      executeSearch(searchQuery, page + 1, true)
+      executeSearch(searchQuery, page + 1, true, searchType)
     } else {
       fetchTopPlaylists(page + 1, true)
     }
-  }, [isLoading, hasMore, activeCollection, searchQuery, page])
+  }, [isLoading, hasMore, activeCollection, searchQuery, searchType, page])
 
   useEffect(() => {
     const sentinel = sentinelRef.current
@@ -591,14 +564,29 @@ export default function App() {
       if (!val.trim()) {
         fetchTopPlaylists(0, false)
       } else {
-        executeSearch(val, 0, false)
+        executeSearch(val, 0, false, searchType)
       }
     }, 400)
   }
 
+  const handleSearchSubmit = () => {
+    clearTimeout(searchTimerRef.current)
+    executeSearch(searchQuery, 0, false, searchType)
+  }
+
+  const handleSearchTypeChange = (type) => {
+    setSearchType(type)
+    if (!searchQuery.trim()) return
+    clearTimeout(searchTimerRef.current)
+    executeSearch(searchQuery, 0, false, type)
+  }
+
   const handleSearchClear = () => {
+    clearTimeout(searchTimerRef.current)
+    searchAbortCtrlRef.current?.abort()
     setSearchQuery('')
     setActiveCollection(null)
+    setTotalResults(0)
     fetchTopPlaylists(0, false)
   }
 
@@ -655,10 +643,6 @@ export default function App() {
 
   const handleAlbumClick = useCallback((albumId) => {
     handleCardClick(albumId, 'albums')
-  }, [handleCardClick])
-
-  const handlePlaylistClick = useCallback((id) => {
-    handleCardClick(id, 'playlists')
   }, [handleCardClick])
 
   const handleCollectionTrackDownload = useCallback((track) => {
@@ -803,12 +787,13 @@ export default function App() {
         <Header
           searchQuery={searchQuery}
           onSearchChange={handleSearchChange}
+          onSearchSubmit={handleSearchSubmit}
           onSearchClear={handleSearchClear}
+          searchType={searchType}
+          onSearchTypeChange={handleSearchTypeChange}
           theme={theme}
           onToggleTheme={handleToggleTheme}
           searchInputRef={searchInputRef}
-          installPrompt={installPrompt}
-          onInstallApp={handleInstallApp}
         />
 
         {/* Collection Hero if viewing an album or playlist */}
@@ -821,6 +806,28 @@ export default function App() {
             onDownloadAll={handleDownloadCollection}
             isDownloadingAll={isDownloadingCollection}
           />
+        )}
+
+        {searchQuery.trim() && !activeCollection && (
+          <div className="results-heading">
+            <div>
+              <p className="results-eyebrow">{searchType} · SEARCH RESULTS</p>
+              <h2>Results for “{searchQuery.trim()}”</h2>
+            </div>
+            {!isLoading && totalResults > 0 && (
+              <span className="results-count">{totalResults.toLocaleString()} found</span>
+            )}
+          </div>
+        )}
+
+        {!searchQuery.trim() && !activeCollection && cards.length > 0 && (
+          <div className="results-heading home-results-heading">
+            <div>
+              <p className="results-eyebrow">A FRESH SOUNDTRACK</p>
+              <h2>Made for your mood.</h2>
+            </div>
+            <span className="results-count">Curated playlists</span>
+          </div>
         )}
 
         {/* Tracks Table (Rendered for songs search OR when viewing an active collection) */}
@@ -843,14 +850,14 @@ export default function App() {
         )}
 
         {/* Top Genuine Playlists Grid (Default view: no heading, just top genuine playlists) */}
-        {cards.length > 0 && !activeCollection && !searchQuery.trim() && (
+        {cards.length > 0 && !activeCollection && (!searchQuery.trim() || searchType !== 'songs') && (
           <div className="card-grid">
             {cards.map((item) => (
               <MusicCard
                 key={item.id}
                 item={item}
-                type="playlists"
-                onClick={handlePlaylistClick}
+                type={searchQuery.trim() ? searchType : 'playlists'}
+                onClick={handleCardClick}
               />
             ))}
           </div>
@@ -861,7 +868,7 @@ export default function App() {
           <div ref={sentinelRef} className="infinite-scroll-sentinel">
             <div className="infinite-scroll-loader">
               <Loader2 size={18} className="spin-loader" />
-              <span>Loading more playlists...</span>
+              <span>Loading more {searchQuery.trim() ? searchType : 'playlists'}...</span>
             </div>
           </div>
         )}
@@ -869,7 +876,7 @@ export default function App() {
         {/* Shimmer Skeleton Loading */}
         {isLoading && tracks.length === 0 && cards.length === 0 && (
           <div className="skeleton-container">
-            {searchQuery.trim() ? (
+            {searchQuery.trim() && searchType === 'songs' ? (
               <div className="track-table">
                 {[...Array(8)].map((_, i) => (
                   <div key={i} className="skeleton-row">
@@ -901,8 +908,10 @@ export default function App() {
         {/* Empty state */}
         {!isLoading && tracks.length === 0 && cards.length === 0 && !activeCollection && (
           <div className="empty-box">
-            <h3>No results found</h3>
-            <p>Try searching for a different song or playlist name.</p>
+            <h3>{searchQuery.trim() ? 'No matches this time' : 'Nothing here yet'}</h3>
+            <p>{searchQuery.trim()
+              ? `Try another ${searchType === 'artists' ? 'artist' : searchType.slice(0, -1)} name or a shorter search.`
+              : 'Your next favorite playlist is just around the corner.'}</p>
           </div>
         )}
 
