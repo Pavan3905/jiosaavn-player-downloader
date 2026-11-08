@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useCallback } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Compass, Disc3, ListMusic, Loader2, Mic2, Moon, Music2, Sun } from 'lucide-react'
 import { Header } from './components/Header.jsx'
 import { TrackRow } from './components/TrackRow.jsx'
 import { MusicCard } from './components/MusicCard.jsx'
@@ -68,6 +68,7 @@ export default function App() {
   const [searchInputValue, setSearchInputValue] = useState('')
   const [searchQuery, setSearchQuery] = useState('')
   const [searchType, setSearchType] = useState('songs')
+  const [activeNav, setActiveNav] = useState('discover')
   const [tracks, setTracks] = useState([])
   const [cards, setCards] = useState([])
   const [homeShelves, setHomeShelves] = useState([])
@@ -393,7 +394,8 @@ export default function App() {
 
   const fetchHomeShelves = async (useCache = true) => {
     searchAbortCtrlRef.current?.abort()
-    searchAbortCtrlRef.current = new AbortController()
+    const controller = new AbortController()
+    searchAbortCtrlRef.current = controller
     setIsLoading(true)
     setActiveCollection(null)
     setTracks([])
@@ -406,18 +408,20 @@ export default function App() {
       return
     }
 
-    const sources = [
-      { id: 'songs', title: 'Trending songs', query: 'trending songs' },
-      { id: 'albums', title: 'Popular albums', query: 'latest hits' },
-      { id: 'artists', title: 'Artists to know', query: 'popular singers' },
-      { id: 'playlists', title: 'Top playlists', query: 'trending' }
-    ]
-    const { signal } = searchAbortCtrlRef.current
+    const releaseYear = new Date().getFullYear()
+    const sources = ['Hindi', 'Kannada', 'Telugu', 'Tamil', 'Malayalam', 'Punjabi']
+      .map((language) => ({
+        id: 'songs',
+        language,
+        title: language,
+        query: `new ${language.toLowerCase()} songs ${releaseYear}`
+      }))
+    const { signal } = controller
 
     try {
       const responses = await Promise.allSettled(sources.map(async (source) => {
         const response = await fetch(
-          apiUrl(`/api/search/${source.id}?query=${encodeURIComponent(source.query)}&page=0&limit=12`),
+          apiUrl(`/api/search/songs?query=${encodeURIComponent(source.query)}&page=0&limit=20`),
           { signal }
         )
         if (!response.ok) throw new Error(`Could not load ${source.title.toLowerCase()}`)
@@ -425,9 +429,16 @@ export default function App() {
         const results = json.data?.results || []
         return {
           ...source,
-          items: source.id === 'songs' ? results.map(normalizeTrack).filter(Boolean) : results
+          items: results
+            .map(normalizeTrack)
+            .filter((track) => track && track.language.toLowerCase() === source.language.toLowerCase())
+            .filter((track) => Number.parseInt(track.year, 10) >= releaseYear)
+            .sort((a, b) => (Date.parse(b.releaseDate) || 0) - (Date.parse(a.releaseDate) || 0))
+            .slice(0, 12)
         }
       }))
+      if (signal.aborted || searchAbortCtrlRef.current !== controller) return
+
       const shelves = responses
         .filter((result) => result.status === 'fulfilled' && result.value.items.length > 0)
         .map((result) => result.value)
@@ -437,11 +448,13 @@ export default function App() {
       setHomeShelves(shelves)
       homeShelvesCacheRef.current = shelves
     } catch (err) {
-      if (err.name !== 'AbortError') {
+      if (!signal.aborted && searchAbortCtrlRef.current === controller && err.name !== 'AbortError') {
         showToast(err.message || 'Could not load music shelves', true)
       }
     } finally {
-      setIsLoading(false)
+      if (searchAbortCtrlRef.current === controller) {
+        setIsLoading(false)
+      }
     }
   }
 
@@ -560,11 +573,13 @@ export default function App() {
   const handleSearchSubmit = () => {
     const query = searchInputValue.trim()
     setSearchQuery(query)
+    setActiveNav(query ? searchType : 'discover')
     executeSearch(query, 0, false, searchType)
   }
 
   const handleSearchTypeChange = (type) => {
     setSearchType(type)
+    setActiveNav(type)
     if (!searchQuery.trim()) return
     executeSearch(searchQuery, 0, false, type)
   }
@@ -573,9 +588,19 @@ export default function App() {
     searchAbortCtrlRef.current?.abort()
     setSearchInputValue('')
     setSearchQuery('')
+    setActiveNav('discover')
     setActiveCollection(null)
     setTotalResults(0)
     fetchHomeShelves()
+  }
+
+  const handleBrowseCategory = (type) => {
+    if (searchQuery.trim() || searchInputValue || activeCollection) {
+      handleSearchClear()
+    }
+    setSearchType(type)
+    setActiveNav(type)
+    searchInputRef.current?.focus()
   }
 
   // Load Album / Playlist / Artist details
@@ -664,7 +689,7 @@ export default function App() {
       return
     }
 
-    const songs = homeShelves.find((shelf) => shelf.id === 'songs')?.items || []
+    const songs = homeShelves.find((shelf) => shelf.items.some((song) => song.id === id))?.items || []
     const index = songs.findIndex((song) => song.id === id)
     if (index >= 0) {
       setQueue(songs)
@@ -824,6 +849,54 @@ export default function App() {
 
   return (
     <div className="app-layout">
+      <aside className="sidebar" aria-label="Primary navigation">
+        <a className="sidebar-brand" href="/" aria-label="Saavn home">
+          <span className="sidebar-brand-mark"><Music2 size={18} /></span>
+          <span>saavn</span>
+        </a>
+
+        <nav className="sidebar-nav">
+          <button
+            type="button"
+            className={`sidebar-link ${activeNav === 'discover' ? 'active' : ''}`}
+            onClick={handleSearchClear}
+            aria-current={activeNav === 'discover' ? 'page' : undefined}
+          >
+            <Compass size={18} />
+            <span>Discover</span>
+          </button>
+          <div className="sidebar-divider" />
+          {[
+            { id: 'songs', label: 'Songs', Icon: Music2 },
+            { id: 'albums', label: 'Albums', Icon: Disc3 },
+            { id: 'artists', label: 'Artists', Icon: Mic2 },
+            { id: 'playlists', label: 'Playlists', Icon: ListMusic }
+          ].map(({ id, label, Icon }) => (
+            <button
+              key={id}
+              type="button"
+              className={`sidebar-link ${activeNav === id ? 'active' : ''}`}
+              onClick={() => handleBrowseCategory(id)}
+              aria-current={activeNav === id ? 'page' : undefined}
+            >
+              <Icon size={18} />
+              <span>{label}</span>
+            </button>
+          ))}
+        </nav>
+
+        <button
+          type="button"
+          className="sidebar-appearance"
+          onClick={handleToggleTheme}
+          aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+          title={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+        >
+          {theme === 'dark' ? <Sun size={17} /> : <Moon size={17} />}
+          <span>{theme === 'dark' ? 'Light mode' : 'Dark mode'}</span>
+        </button>
+      </aside>
+
       <main className={`main-content ${currentTrack ? 'has-player' : ''}`}>
         <Header
           searchInputValue={searchInputValue}
@@ -853,8 +926,7 @@ export default function App() {
         {searchQuery.trim() && !activeCollection && (
           <div className="results-heading">
             <div>
-              <p className="results-eyebrow">{searchType} · SEARCH RESULTS</p>
-              <h2>Results for “{searchQuery.trim()}”</h2>
+              <h2>“{searchQuery.trim()}”</h2>
             </div>
             {!isLoading && totalResults > 0 && (
               <span className="results-count">{totalResults.toLocaleString()} found</span>
@@ -882,7 +954,7 @@ export default function App() {
         )}
 
         {!searchQuery.trim() && !activeCollection && homeShelves.map((shelf) => (
-          <HomeShelf key={shelf.id} shelf={shelf} onCardClick={handleHomeCardClick} />
+          <HomeShelf key={`${shelf.id}-${shelf.language}`} shelf={shelf} onCardClick={handleHomeCardClick} />
         ))}
 
         {cards.length > 0 && !activeCollection && searchQuery.trim() && searchType !== 'songs' && (
@@ -960,9 +1032,9 @@ export default function App() {
         {!isLoading && tracks.length === 0 && cards.length === 0 && homeShelves.length === 0 && !activeCollection && (
           <div className="empty-box">
             <h3>{searchQuery.trim() ? 'No matches this time' : 'Nothing here yet'}</h3>
-            <p>{searchQuery.trim()
-              ? `Try another ${searchType === 'artists' ? 'artist' : searchType.slice(0, -1)} name or a shorter search.`
-              : 'Your next favorite playlist is just around the corner.'}</p>
+            {searchQuery.trim() && (
+              <p>{`Try another ${searchType === 'artists' ? 'artist' : searchType.slice(0, -1)} name or a shorter search.`}</p>
+            )}
           </div>
         )}
 
